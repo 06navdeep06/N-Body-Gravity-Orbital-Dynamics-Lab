@@ -31,15 +31,21 @@ export function Bodies() {
     const mesh = meshRef.current;
     if (!mesh) return;
 
-    const { bodies } = useSimulationStore.getState().system;
-    const selectedId = useSimulationStore.getState().selectedBodyId;
+    const { system, selectedBodyId: selectedId, visualRadiusScale, maxDisplayRadius } =
+      useSimulationStore.getState();
+    const { bodies } = system;
     const visibleCount = Math.min(bodies.length, CAPACITY);
+
+    const displayRadius = (radius: number): number => {
+      const scaled = radius * visualRadiusScale;
+      return maxDisplayRadius > 0 ? Math.min(scaled, maxDisplayRadius) : scaled;
+    };
 
     for (let i = 0; i < CAPACITY; i++) {
       const body = bodies[i];
       if (body) {
         dummy.position.set(body.position.x, body.position.y, body.position.z);
-        dummy.scale.setScalar(body.radius);
+        dummy.scale.setScalar(displayRadius(body.radius));
         dummy.updateMatrix();
         mesh.setMatrixAt(i, dummy.matrix);
         mesh.setColorAt(i, tmpColor.set(body.color));
@@ -63,7 +69,7 @@ export function Bodies() {
       if (selected) {
         selectedMesh.visible = true;
         selectedMesh.position.set(selected.position.x, selected.position.y, selected.position.z);
-        selectedMesh.scale.setScalar(selected.radius * 1.6);
+        selectedMesh.scale.setScalar(displayRadius(selected.radius) * 1.6);
       } else {
         selectedMesh.visible = false;
       }

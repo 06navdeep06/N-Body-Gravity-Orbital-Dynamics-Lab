@@ -13,6 +13,14 @@ export function EnergyDashboard() {
   const workerStepMs = useSimulationStore((s) => s.workerStepMs);
   const bodyCount = useSimulationStore((s) => s.system.bodies.length);
   const collisionEvents = useSimulationStore((s) => s.collisionEvents);
+  const simTime = useSimulationStore((s) => s.simTime);
+  const timeUnit = useSimulationStore((s) => s.timeUnit);
+
+  const simTimeLabel = timeUnit
+    ? simTime * timeUnit.earthDaysPerUnit >= 730
+      ? `${((simTime * timeUnit.earthDaysPerUnit) / 365.25).toFixed(2)} yr`
+      : `${(simTime * timeUnit.earthDaysPerUnit).toFixed(1)} days`
+    : simTime.toFixed(2);
 
   const fpsColor = fps >= 55 ? "text-emerald-400" : fps >= 30 ? "text-amber-400" : "text-red-400";
 
@@ -30,9 +38,13 @@ export function EnergyDashboard() {
         </PhysicsTooltip>
         <span>{workerStepMs.toFixed(2)} ms</span>
       </div>
-      <div className="mb-2 flex items-center justify-between">
+      <div className="mb-1 flex items-center justify-between">
         <span className="text-zinc-500">Bodies</span>
         <span>{bodyCount}</span>
+      </div>
+      <div className="mb-2 flex items-center justify-between">
+        <span className="text-zinc-500">Sim time</span>
+        <span>{simTimeLabel}</span>
       </div>
 
       {metrics && (

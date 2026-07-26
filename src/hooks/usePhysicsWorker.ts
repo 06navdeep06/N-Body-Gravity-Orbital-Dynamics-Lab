@@ -15,6 +15,7 @@
  */
 
 import { useEffect, useRef } from "react";
+import { poincareRecorder } from "@/lib/physics/poincare";
 import type { PhysicsStepRequest, PhysicsWorkerResponse } from "@/lib/physics/worker-protocol";
 import type { Vector3D } from "@/lib/physics/types";
 import { useSimulationStore } from "@/lib/stores/simulation-store";
@@ -54,7 +55,9 @@ export function usePhysicsWorker() {
       store.applyPhysicsResult(data.state);
       store.setEnergyMetrics(data.metrics);
       store.setWorkerStepMs(data.stepMs);
+      store.addSimTime(data.elapsedDt);
       if (data.collisionEvents.length > 0) store.recordCollisions(data.collisionEvents);
+      if (store.showPhaseSpace) poincareRecorder.record(data.state, store.primaryBodyId);
 
       if (store.showTrails) {
         const points: Record<string, Vector3D> = {};

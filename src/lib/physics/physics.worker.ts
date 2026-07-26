@@ -63,8 +63,10 @@ function handleStep(request: PhysicsStepRequest): void {
 
   let currentState = request.state;
   const allCollisionEvents: CollisionEvent[] = [];
+  let elapsedDt = 0;
 
   for (let i = 0; i < steps; i++) {
+    elapsedDt += currentState.timeStep;
     const prevMetrics = adaptiveTimestep ? calculateEnergyMetrics(currentState) : null;
 
     let stepped = accelerationFn ? stepRK4(currentState, accelerationFn) : stepRK4(currentState);
@@ -102,6 +104,7 @@ function handleStep(request: PhysicsStepRequest): void {
     metrics,
     collisionEvents: allCollisionEvents,
     stepMs,
+    elapsedDt,
   };
   ctx.postMessage(response);
 }

@@ -47,6 +47,8 @@ export interface PhysicsStepResponse {
   collisionEvents: CollisionEvent[];
   /** Wall-clock time this batch of steps took inside the worker, in ms. */
   stepMs: number;
+  /** Total simulation time advanced by this batch (sums actual per-step dt, which varies under adaptive timestep). */
+  elapsedDt: number;
 }
 
 /** Sent back to the main thread if a request could not be processed. */

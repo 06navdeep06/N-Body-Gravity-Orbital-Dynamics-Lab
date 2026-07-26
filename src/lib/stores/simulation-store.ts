@@ -15,6 +15,20 @@ import type { CelestialBody, EnergyMetrics, SystemState, Vector3D } from "@/lib/
 export const MAX_TRAIL_LENGTH = 600;
 export const MAX_COLLISION_LOG = 20;
 
+export type CameraMode = "free" | "follow" | "topdown" | "flyby" | "corotating" | "dolly";
+
+/** A computed transfer awaiting execution; rendered as an arc in the scene. */
+export interface PlannedTransfer {
+  departureId: string;
+  arrivalId: string;
+  primaryId: string;
+  r1: number;
+  r2: number;
+  deltaV1: number;
+  deltaV2: number;
+  transferTime: number;
+}
+
 export interface Preset {
   id: string;
   name: string;
@@ -23,6 +37,12 @@ export interface Preset {
   /** Optional store overrides applied when this preset loads (e.g. Mercury Precession enabling GR). */
   enableGR?: boolean;
   speedOfLight?: number;
+  /** Visual-only multiplier applied to body radii at render time (Real Solar System). */
+  visualRadiusScale?: number;
+  /** Cap on displayed radius in sim units (0 = uncapped) so the Sun doesn't swallow inner planets at high exaggeration. */
+  maxDisplayRadius?: number;
+  /** How to convert simulation time units to human time for display. */
+  timeUnit?: { label: string; earthDaysPerUnit: number };
 }
 
 interface SimulationState {
@@ -53,6 +73,21 @@ interface SimulationState {
   showOrbitEllipses: boolean;
   showLagrangePoints: boolean;
   showFormulaOverlay: boolean;
+  showSpacetimeGrid: boolean;
+  showHillSpheres: boolean;
+  showRocheLimits: boolean;
+  showPhaseSpace: boolean;
+
+  cameraMode: CameraMode;
+  /** Visual-only radius multiplier (see Preset.visualRadiusScale). */
+  visualRadiusScale: number;
+  maxDisplayRadius: number;
+  /** Accumulated simulation time since the preset was loaded, in sim time units. */
+  simTime: number;
+  timeUnit: { label: string; earthDaysPerUnit: number } | null;
+
+  plannedTransfer: PlannedTransfer | null;
+  transferPlannerOpen: boolean;
 
   enableGR: boolean;
   speedOfLight: number;
@@ -94,8 +129,18 @@ interface SimulationState {
   toggleShowOrbitEllipses: () => void;
   toggleShowLagrangePoints: () => void;
   toggleShowFormulaOverlay: () => void;
+  toggleShowSpacetimeGrid: () => void;
+  toggleShowHillSpheres: () => void;
+  toggleShowRocheLimits: () => void;
+  toggleShowPhaseSpace: () => void;
   toggleEnableGR: () => void;
   setSpeedOfLight: (c: number) => void;
+
+  setCameraMode: (mode: CameraMode) => void;
+  setVisualRadiusScale: (s: number) => void;
+  addSimTime: (dt: number) => void;
+  setPlannedTransfer: (t: PlannedTransfer | null) => void;
+  setTransferPlannerOpen: (open: boolean) => void;
 
   appendTrailPoints: (points: Record<string, Vector3D>) => void;
   clearTrails: () => void;
@@ -132,6 +177,19 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   showOrbitEllipses: false,
   showLagrangePoints: false,
   showFormulaOverlay: false,
+  showSpacetimeGrid: false,
+  showHillSpheres: false,
+  showRocheLimits: false,
+  showPhaseSpace: false,
+
+  cameraMode: "free",
+  visualRadiusScale: 1,
+  maxDisplayRadius: 0,
+  simTime: 0,
+  timeUnit: null,
+
+  plannedTransfer: null,
+  transferPlannerOpen: false,
 
   enableGR: false,
   speedOfLight: 60,
@@ -185,6 +243,11 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       isRunning: false,
       enableGR: preset.enableGR ?? false,
       speedOfLight: preset.speedOfLight ?? get().speedOfLight,
+      visualRadiusScale: preset.visualRadiusScale ?? 1,
+      maxDisplayRadius: preset.maxDisplayRadius ?? 0,
+      simTime: 0,
+      timeUnit: preset.timeUnit ?? null,
+      plannedTransfer: null,
       generation: s.generation + 1,
     })),
 
@@ -201,8 +264,18 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   toggleShowOrbitEllipses: () => set((s) => ({ showOrbitEllipses: !s.showOrbitEllipses })),
   toggleShowLagrangePoints: () => set((s) => ({ showLagrangePoints: !s.showLagrangePoints })),
   toggleShowFormulaOverlay: () => set((s) => ({ showFormulaOverlay: !s.showFormulaOverlay })),
+  toggleShowSpacetimeGrid: () => set((s) => ({ showSpacetimeGrid: !s.showSpacetimeGrid })),
+  toggleShowHillSpheres: () => set((s) => ({ showHillSpheres: !s.showHillSpheres })),
+  toggleShowRocheLimits: () => set((s) => ({ showRocheLimits: !s.showRocheLimits })),
+  toggleShowPhaseSpace: () => set((s) => ({ showPhaseSpace: !s.showPhaseSpace })),
   toggleEnableGR: () => set((s) => ({ enableGR: !s.enableGR })),
   setSpeedOfLight: (speedOfLight) => set({ speedOfLight }),
+
+  setCameraMode: (cameraMode) => set({ cameraMode }),
+  setVisualRadiusScale: (visualRadiusScale) => set({ visualRadiusScale }),
+  addSimTime: (dt) => set((s) => ({ simTime: s.simTime + dt })),
+  setPlannedTransfer: (plannedTransfer) => set({ plannedTransfer }),
+  setTransferPlannerOpen: (transferPlannerOpen) => set({ transferPlannerOpen }),
 
   appendTrailPoints: (points) =>
     set((s) => {

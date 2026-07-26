@@ -1,6 +1,7 @@
 "use client";
 
-import { Pause, Play, RotateCcw } from "lucide-react";
+import { Pause, Play, Route, RotateCcw } from "lucide-react";
+import { CAMERA_MODES } from "@/lib/camera/camera-modes";
 import { PRESETS } from "@/lib/presets";
 import { useSimulationStore } from "@/lib/stores/simulation-store";
 import { useTimelineStore } from "@/lib/stores/timeline-store";
@@ -71,6 +72,21 @@ export function ControlSidebar() {
   const toggleShowLagrangePoints = useSimulationStore((s) => s.toggleShowLagrangePoints);
   const showFormulaOverlay = useSimulationStore((s) => s.showFormulaOverlay);
   const toggleShowFormulaOverlay = useSimulationStore((s) => s.toggleShowFormulaOverlay);
+  const showSpacetimeGrid = useSimulationStore((s) => s.showSpacetimeGrid);
+  const toggleShowSpacetimeGrid = useSimulationStore((s) => s.toggleShowSpacetimeGrid);
+  const showHillSpheres = useSimulationStore((s) => s.showHillSpheres);
+  const toggleShowHillSpheres = useSimulationStore((s) => s.toggleShowHillSpheres);
+  const showRocheLimits = useSimulationStore((s) => s.showRocheLimits);
+  const toggleShowRocheLimits = useSimulationStore((s) => s.toggleShowRocheLimits);
+  const showPhaseSpace = useSimulationStore((s) => s.showPhaseSpace);
+  const toggleShowPhaseSpace = useSimulationStore((s) => s.toggleShowPhaseSpace);
+
+  const cameraMode = useSimulationStore((s) => s.cameraMode);
+  const setCameraMode = useSimulationStore((s) => s.setCameraMode);
+  const selectedBodyId = useSimulationStore((s) => s.selectedBodyId);
+  const visualRadiusScale = useSimulationStore((s) => s.visualRadiusScale);
+  const setVisualRadiusScale = useSimulationStore((s) => s.setVisualRadiusScale);
+  const setTransferPlannerOpen = useSimulationStore((s) => s.setTransferPlannerOpen);
 
   const enableGR = useSimulationStore((s) => s.enableGR);
   const toggleEnableGR = useSimulationStore((s) => s.toggleEnableGR);
@@ -233,6 +249,86 @@ export function ControlSidebar() {
         <Row label="Formula overlay">
           <Toggle checked={showFormulaOverlay} onChange={toggleShowFormulaOverlay} />
         </Row>
+        <Row label="Show Spacetime Grid">
+          <Toggle
+            checked={showSpacetimeGrid}
+            onChange={toggleShowSpacetimeGrid}
+            title="Deformable 'rubber sheet' showing the gravitational potential. GPU-heavy — resolution auto-degrades below 45 FPS."
+          />
+        </Row>
+        <Row label="Show Hill Spheres">
+          <Toggle
+            checked={showHillSpheres}
+            onChange={toggleShowHillSpheres}
+            title="Each body's gravitational sphere of influence relative to the primary."
+          />
+        </Row>
+        <Row label="Show Roche Limits">
+          <Toggle
+            checked={showRocheLimits}
+            onChange={toggleShowRocheLimits}
+            title="Red ring at the tidal-disruption distance around massive bodies."
+          />
+        </Row>
+        <Row label="Show Phase Space">
+          <Toggle
+            checked={showPhaseSpace}
+            onChange={toggleShowPhaseSpace}
+            title="Real-time Poincaré section and (r, ṙ) phase trajectory panel."
+          />
+        </Row>
+        <Row label={`Radius scale: ${visualRadiusScale.toFixed(0)}x`}>
+          <input
+            type="range"
+            min={1}
+            max={3000}
+            step={1}
+            value={visualRadiusScale}
+            onChange={(e) => setVisualRadiusScale(Number(e.target.value))}
+            className="w-32"
+            title="Visual exaggeration of body radii (1x = true scale). Physics is unaffected."
+          />
+        </Row>
+      </section>
+
+      <section className="space-y-2 border-t border-zinc-800 pt-3">
+        <h2 className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">Camera</h2>
+        <div className="grid grid-cols-3 gap-1">
+          {CAMERA_MODES.map((mode) => {
+            const disabled = mode.needsSelection && !selectedBodyId;
+            return (
+              <button
+                key={mode.id}
+                onClick={() => setCameraMode(mode.id)}
+                disabled={disabled}
+                title={mode.description + (disabled ? " (select a body first)" : "")}
+                className={`flex flex-col items-center gap-0.5 rounded-md border px-1 py-1.5 text-[9px] leading-tight transition-colors ${
+                  cameraMode === mode.id
+                    ? "border-sky-500 bg-sky-950/60 text-sky-200"
+                    : disabled
+                      ? "cursor-not-allowed border-zinc-800 text-zinc-600"
+                      : "border-zinc-700 text-zinc-300 hover:border-zinc-500"
+                }`}
+              >
+                <span className="text-sm leading-none">{mode.glyph}</span>
+                {mode.label}
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="space-y-2 border-t border-zinc-800 pt-3">
+        <h2 className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
+          Mission Planning
+        </h2>
+        <button
+          onClick={() => setTransferPlannerOpen(true)}
+          className="flex w-full items-center justify-center gap-2 rounded-md bg-cyan-900/70 py-2 text-xs font-medium text-cyan-100 hover:bg-cyan-800/80"
+        >
+          <Route size={14} />
+          Plan Transfer
+        </button>
       </section>
 
       <section className="space-y-2 border-t border-zinc-800 pt-3">

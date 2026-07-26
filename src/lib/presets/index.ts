@@ -5,6 +5,7 @@
  */
 
 import { circularOrbitVelocity } from "@/lib/utils/orbital-velocity";
+import { REAL_SOLAR_SYSTEM_PRESET } from "@/lib/data/solar-system";
 import type { Preset } from "@/lib/stores/simulation-store";
 import type { CelestialBody } from "@/lib/physics/types";
 
@@ -267,6 +268,7 @@ export const PRESETS: Preset[] = [
   asteroidBelt(),
   galaxyCollision(),
   mercuryPrecession(),
+  REAL_SOLAR_SYSTEM_PRESET,
 ];
 
 export function getPresetById(presetId: string): Preset | undefined {
