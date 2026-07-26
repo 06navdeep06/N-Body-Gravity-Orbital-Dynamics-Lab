@@ -1,0 +1,270 @@
+"use client";
+
+import { Pause, Play, RotateCcw } from "lucide-react";
+import { PRESETS } from "@/lib/presets";
+import { useSimulationStore } from "@/lib/stores/simulation-store";
+import { useTimelineStore } from "@/lib/stores/timeline-store";
+
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="flex items-center justify-between gap-3 text-xs text-zinc-300">
+      <span>{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function Toggle({
+  checked,
+  onChange,
+  title,
+}: {
+  checked: boolean;
+  onChange: () => void;
+  title?: string;
+}) {
+  return (
+    <button
+      type="button"
+      title={title}
+      onClick={onChange}
+      className={`h-5 w-9 shrink-0 rounded-full transition-colors ${
+        checked ? "bg-sky-500" : "bg-zinc-700"
+      }`}
+    >
+      <span
+        className={`block h-4 w-4 translate-y-0.5 rounded-full bg-white transition-transform ${
+          checked ? "translate-x-4" : "translate-x-0.5"
+        }`}
+      />
+    </button>
+  );
+}
+
+export function ControlSidebar() {
+  const isRunning = useSimulationStore((s) => s.isRunning);
+  const togglePlay = useSimulationStore((s) => s.togglePlay);
+  const loadPreset = useSimulationStore((s) => s.loadPreset);
+  const presetId = useSimulationStore((s) => s.presetId);
+
+  const system = useSimulationStore((s) => s.system);
+  const setTimeStep = useSimulationStore((s) => s.setTimeStep);
+  const setG = useSimulationStore((s) => s.setG);
+  const setSoftening = useSimulationStore((s) => s.setSoftening);
+
+  const stepsPerFrame = useSimulationStore((s) => s.stepsPerFrame);
+  const setStepsPerFrame = useSimulationStore((s) => s.setStepsPerFrame);
+  const useOctree = useSimulationStore((s) => s.useOctree);
+  const setUseOctree = useSimulationStore((s) => s.setUseOctree);
+  const theta = useSimulationStore((s) => s.theta);
+  const setTheta = useSimulationStore((s) => s.setTheta);
+  const adaptiveTimestep = useSimulationStore((s) => s.adaptiveTimestep);
+  const setAdaptiveTimestep = useSimulationStore((s) => s.setAdaptiveTimestep);
+
+  const showTrails = useSimulationStore((s) => s.showTrails);
+  const toggleShowTrails = useSimulationStore((s) => s.toggleShowTrails);
+  const showVelocityArrows = useSimulationStore((s) => s.showVelocityArrows);
+  const toggleShowVelocityArrows = useSimulationStore((s) => s.toggleShowVelocityArrows);
+  const showOrbitEllipses = useSimulationStore((s) => s.showOrbitEllipses);
+  const toggleShowOrbitEllipses = useSimulationStore((s) => s.toggleShowOrbitEllipses);
+  const showLagrangePoints = useSimulationStore((s) => s.showLagrangePoints);
+  const toggleShowLagrangePoints = useSimulationStore((s) => s.toggleShowLagrangePoints);
+  const showFormulaOverlay = useSimulationStore((s) => s.showFormulaOverlay);
+  const toggleShowFormulaOverlay = useSimulationStore((s) => s.toggleShowFormulaOverlay);
+
+  const enableGR = useSimulationStore((s) => s.enableGR);
+  const toggleEnableGR = useSimulationStore((s) => s.toggleEnableGR);
+  const speedOfLight = useSimulationStore((s) => s.speedOfLight);
+  const setSpeedOfLight = useSimulationStore((s) => s.setSpeedOfLight);
+
+  const clearHistory = useTimelineStore((s) => s.clearHistory);
+
+  const handlePresetChange = (id: string) => {
+    const preset = PRESETS.find((p) => p.id === id);
+    if (preset) {
+      loadPreset(preset);
+      clearHistory();
+    }
+  };
+
+  const handleReset = () => {
+    const preset = PRESETS.find((p) => p.id === presetId) ?? PRESETS[0];
+    if (preset) {
+      loadPreset(preset);
+      clearHistory();
+    }
+  };
+
+  return (
+    <div className="flex h-full w-72 flex-col gap-4 overflow-y-auto border-r border-zinc-800 bg-zinc-950/90 p-4 text-zinc-100">
+      <div>
+        <h1 className="text-sm font-semibold tracking-wide text-zinc-100">
+          N-Body Orbital Dynamics Lab
+        </h1>
+        <p className="mt-1 text-[11px] text-zinc-500">Phase 3 — advanced simulation lab</p>
+      </div>
+
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={togglePlay}
+          className="flex flex-1 items-center justify-center gap-2 rounded-md bg-sky-600 py-2 text-sm font-medium hover:bg-sky-500"
+        >
+          {isRunning ? <Pause size={16} /> : <Play size={16} />}
+          {isRunning ? "Pause" : "Play"}
+        </button>
+        <button
+          type="button"
+          onClick={handleReset}
+          title="Reset to the current preset's initial state"
+          className="flex items-center justify-center rounded-md bg-zinc-800 px-3 hover:bg-zinc-700"
+        >
+          <RotateCcw size={16} />
+        </button>
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs text-zinc-400">Preset</label>
+        <select
+          value={presetId}
+          onChange={(e) => handlePresetChange(e.target.value)}
+          className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs"
+        >
+          {PRESETS.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+        <p className="mt-1 text-[10px] text-zinc-500">
+          {PRESETS.find((p) => p.id === presetId)?.description}
+        </p>
+      </div>
+
+      <section className="space-y-2 border-t border-zinc-800 pt-3">
+        <h2 className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
+          Simulation
+        </h2>
+        <Row label={`Timestep: ${system.timeStep.toFixed(4)}`}>
+          <input
+            type="range"
+            min={0.0005}
+            max={0.05}
+            step={0.0005}
+            value={system.timeStep}
+            onChange={(e) => setTimeStep(Number(e.target.value))}
+            className="w-32"
+          />
+        </Row>
+        <Row label={`G: ${system.G.toFixed(2)}`}>
+          <input
+            type="range"
+            min={0.1}
+            max={5}
+            step={0.1}
+            value={system.G}
+            onChange={(e) => setG(Number(e.target.value))}
+            className="w-32"
+          />
+        </Row>
+        <Row label={`Softening: ${system.softening.toFixed(3)}`}>
+          <input
+            type="range"
+            min={0.001}
+            max={0.5}
+            step={0.001}
+            value={system.softening}
+            onChange={(e) => setSoftening(Number(e.target.value))}
+            className="w-32"
+          />
+        </Row>
+        <Row label={`Steps/frame: ${stepsPerFrame}`}>
+          <input
+            type="range"
+            min={1}
+            max={12}
+            step={1}
+            value={stepsPerFrame}
+            onChange={(e) => setStepsPerFrame(Number(e.target.value))}
+            className="w-32"
+          />
+        </Row>
+        <Row label="Use Barnes-Hut octree">
+          <Toggle checked={useOctree} onChange={() => setUseOctree(!useOctree)} />
+        </Row>
+        {useOctree && (
+          <Row label={`Theta (θ): ${theta.toFixed(2)}`}>
+            <input
+              type="range"
+              min={0.1}
+              max={1.5}
+              step={0.05}
+              value={theta}
+              onChange={(e) => setTheta(Number(e.target.value))}
+              className="w-32"
+            />
+          </Row>
+        )}
+        <Row label="Adaptive timestep">
+          <Toggle
+            checked={adaptiveTimestep}
+            onChange={() => setAdaptiveTimestep(!adaptiveTimestep)}
+            title="Automatically halves the timestep when energy drift is high (e.g. close encounters) and doubles it back when the system is calm."
+          />
+        </Row>
+      </section>
+
+      <section className="space-y-2 border-t border-zinc-800 pt-3">
+        <h2 className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
+          Visualization
+        </h2>
+        <Row label="Trails">
+          <Toggle checked={showTrails} onChange={toggleShowTrails} />
+        </Row>
+        <Row label="Velocity arrows">
+          <Toggle checked={showVelocityArrows} onChange={toggleShowVelocityArrows} />
+        </Row>
+        <Row label="Show Predicted Orbits">
+          <Toggle checked={showOrbitEllipses} onChange={toggleShowOrbitEllipses} />
+        </Row>
+        <Row label="Show Lagrange Points">
+          <Toggle checked={showLagrangePoints} onChange={toggleShowLagrangePoints} />
+        </Row>
+        <Row label="Formula overlay">
+          <Toggle checked={showFormulaOverlay} onChange={toggleShowFormulaOverlay} />
+        </Row>
+      </section>
+
+      <section className="space-y-2 border-t border-zinc-800 pt-3">
+        <h2 className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
+          General Relativity
+        </h2>
+        <Row label="Enable GR Precession">
+          <Toggle
+            checked={enableGR}
+            onChange={toggleEnableGR}
+            title="Adds the leading-order post-Newtonian (Schwarzschild) correction to gravity — the same effect that causes Mercury's perihelion to slowly advance. Forces direct O(N²) summation while enabled."
+          />
+        </Row>
+        {enableGR && (
+          <Row label={`Speed of light: ${speedOfLight.toFixed(0)}`}>
+            <input
+              type="range"
+              min={20}
+              max={2000}
+              step={10}
+              value={speedOfLight}
+              onChange={(e) => setSpeedOfLight(Number(e.target.value))}
+              className="w-32"
+            />
+          </Row>
+        )}
+      </section>
+
+      <p className="mt-auto text-[10px] leading-relaxed text-zinc-600">
+        Hold <kbd className="rounded bg-zinc-800 px-1">Shift</kbd> and drag on the scene to
+        launch a new body (slingshot mechanic).
+      </p>
+    </div>
+  );
+}
