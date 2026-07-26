@@ -6,31 +6,52 @@
  * one <Line> component per body. Capped at MAX_SEGMENTS total; if the
  * combined trail history would exceed that, each body's contribution is
  * downsampled evenly so no single body can starve the others.
+ *
+ * The buffers live behind a ref that's only ever touched inside
+ * useEffect/useFrame (never during render) — both run after React's commit
+ * phase, so mutating them there is the correct, sanctioned escape hatch for
+ * imperative per-frame GPU buffer updates.
  */
 
 import { useFrame } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { useSimulationStore } from "@/lib/stores/simulation-store";
 
 const MAX_SEGMENTS = 20000;
 
+interface TrailBuffers {
+  positions: Float32Array;
+  colors: Float32Array;
+  geometry: THREE.BufferGeometry;
+}
+
+function createTrailBuffers(): TrailBuffers {
+  const positions = new Float32Array(MAX_SEGMENTS * 2 * 3);
+  const colors = new Float32Array(MAX_SEGMENTS * 2 * 3);
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+  return { positions, colors, geometry };
+}
+
 export function Trails() {
   const lineRef = useRef<THREE.LineSegments>(null);
+  const buffersRef = useRef<TrailBuffers | null>(null);
   const showTrails = useSimulationStore((s) => s.showTrails);
 
-  const { positions, colors, geometry } = useMemo(() => {
-    const positions = new Float32Array(MAX_SEGMENTS * 2 * 3);
-    const colors = new Float32Array(MAX_SEGMENTS * 2 * 3);
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-    return { positions, colors, geometry };
+  useEffect(() => {
+    const buffers = createTrailBuffers();
+    buffersRef.current = buffers;
+    if (lineRef.current) lineRef.current.geometry = buffers.geometry;
+    return () => buffers.geometry.dispose();
   }, []);
 
   useFrame(() => {
     const line = lineRef.current;
-    if (!line) return;
+    const buffers = buffersRef.current;
+    if (!line || !buffers) return;
+    const { positions, colors, geometry } = buffers;
 
     if (!showTrails) {
       geometry.setDrawRange(0, 0);
@@ -86,7 +107,7 @@ export function Trails() {
   });
 
   return (
-    <lineSegments ref={lineRef} geometry={geometry}>
+    <lineSegments ref={lineRef}>
       <lineBasicMaterial vertexColors transparent opacity={0.55} />
     </lineSegments>
   );

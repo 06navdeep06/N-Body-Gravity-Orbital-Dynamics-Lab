@@ -15,6 +15,8 @@ export interface PhysicsStepRequest {
   type: "STEP";
   /** Correlates this request with its response; echoed back verbatim. */
   requestId: number;
+  /** Opaque value echoed back verbatim, letting the caller detect stale responses (see simulation-store's `generation`). */
+  generation: number;
   state: SystemState;
   /** Number of RK4 steps to integrate before replying. Defaults to 1. */
   steps?: number;
@@ -39,6 +41,7 @@ export interface PhysicsStepRequest {
 export interface PhysicsStepResponse {
   type: "STEP_RESULT";
   requestId: number;
+  generation: number;
   state: SystemState;
   metrics: EnergyMetrics;
   collisionEvents: CollisionEvent[];

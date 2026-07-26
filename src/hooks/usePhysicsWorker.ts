@@ -45,7 +45,13 @@ export function usePhysicsWorker() {
       }
 
       const store = useSimulationStore.getState();
-      store.setSystem(data.state);
+      if (data.generation !== store.generation) {
+        // Stale response for a preset/timeline state that's since been
+        // replaced (e.g. the user switched presets while this was
+        // in-flight) — discard it rather than clobbering current state.
+        return;
+      }
+      store.applyPhysicsResult(data.state);
       store.setEnergyMetrics(data.metrics);
       store.setWorkerStepMs(data.stepMs);
       if (data.collisionEvents.length > 0) store.recordCollisions(data.collisionEvents);
@@ -100,6 +106,7 @@ export function usePhysicsWorker() {
       const request: PhysicsStepRequest = {
         type: "STEP",
         requestId: requestIdRef.current,
+        generation: store.generation,
         state: store.system,
         steps: store.stepsPerFrame,
         useOctree: store.useOctree,

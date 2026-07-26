@@ -28,6 +28,16 @@ export interface Preset {
 interface SimulationState {
   system: SystemState;
   presetId: string;
+  /**
+   * Bumped whenever `system` is replaced/mutated by anything other than
+   * the physics worker's own step results (preset load, timeline scrub,
+   * snapshot restore, add/remove body). The worker hook stamps each
+   * request with the generation it was issued under and discards any
+   * response whose generation has since gone stale — otherwise a slow
+   * in-flight response for the *previous* preset can land after a preset
+   * switch and silently overwrite the new one.
+   */
+  generation: number;
 
   isRunning: boolean;
   stepsPerFrame: number;
@@ -54,7 +64,10 @@ interface SimulationState {
   workerStepMs: number;
 
   // --- actions ---
+  /** External replacement of the system (timeline scrub, snapshot restore) — bumps `generation`. */
   setSystem: (system: SystemState) => void;
+  /** Applies a physics worker's step result — does NOT bump `generation` (it's not an external reset). */
+  applyPhysicsResult: (system: SystemState) => void;
   addBody: (body: CelestialBody) => void;
   removeBody: (id: string) => void;
   updateBody: (id: string, patch: Partial<CelestialBody>) => void;
@@ -103,6 +116,7 @@ const DEFAULT_SYSTEM: SystemState = {
 export const useSimulationStore = create<SimulationState>((set, get) => ({
   system: DEFAULT_SYSTEM,
   presetId: "empty",
+  generation: 0,
 
   isRunning: false,
   stepsPerFrame: 4,
@@ -128,15 +142,20 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   fps: 0,
   workerStepMs: 0,
 
-  setSystem: (system) => set({ system }),
+  setSystem: (system) => set((s) => ({ system, generation: s.generation + 1 })),
+  applyPhysicsResult: (system) => set({ system }),
 
   addBody: (body) =>
-    set((s) => ({ system: { ...s.system, bodies: [...s.system.bodies, body] } })),
+    set((s) => ({
+      system: { ...s.system, bodies: [...s.system.bodies, body] },
+      generation: s.generation + 1,
+    })),
 
   removeBody: (id) =>
     set((s) => ({
       system: { ...s.system, bodies: s.system.bodies.filter((b) => b.id !== id) },
       selectedBodyId: s.selectedBodyId === id ? null : s.selectedBodyId,
+      generation: s.generation + 1,
     })),
 
   updateBody: (id, patch) =>
@@ -155,7 +174,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   togglePlay: () => set((s) => ({ isRunning: !s.isRunning })),
 
   loadPreset: (preset) =>
-    set({
+    set((s) => ({
       system: preset.state,
       presetId: preset.id,
       selectedBodyId: null,
@@ -166,7 +185,8 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       isRunning: false,
       enableGR: preset.enableGR ?? false,
       speedOfLight: preset.speedOfLight ?? get().speedOfLight,
-    }),
+      generation: s.generation + 1,
+    })),
 
   setTimeStep: (dt) => set((s) => ({ system: { ...s.system, timeStep: dt } })),
   setG: (g) => set((s) => ({ system: { ...s.system, G: g } })),

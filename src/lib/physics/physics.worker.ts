@@ -52,7 +52,7 @@ function pickAccelerationFn(
 
 function handleStep(request: PhysicsStepRequest): void {
   const start = performance.now();
-  const { requestId } = request;
+  const { requestId, generation } = request;
   const steps = request.steps ?? 1;
   const adaptiveTimestep = request.adaptiveTimestep ?? false;
   const accelerationFn = pickAccelerationFn(request);
@@ -97,6 +97,7 @@ function handleStep(request: PhysicsStepRequest): void {
   const response: PhysicsStepResponse = {
     type: "STEP_RESULT",
     requestId,
+    generation,
     state: currentState,
     metrics,
     collisionEvents: allCollisionEvents,
