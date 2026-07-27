@@ -22,6 +22,16 @@
  * from a cross-origin image without CORS headers taint the canvas and break
  * the PNG/WebM export path.
  *
+ * A `manifest.json` at the base declares what actually exists:
+ *
+ *   { "bodies": { "earth": ["albedo", "normal", "clouds"] }, "env": ["starfield"] }
+ *
+ * Nothing is requested unless the manifest lists it. Without that, a
+ * deployment with no imagery — the default one — fires a 404 for every map of
+ * every visible body on startup, which buries real errors in the console and
+ * reads as a broken app even though the fallbacks are working exactly as
+ * intended. One request for the manifest replaces all of them.
+ *
  * ## Why not `useTexture`
  *
  * drei's `useTexture` suspends and, on a 404, throws into the nearest error
@@ -294,6 +304,34 @@ const loader = /* lazily constructed, and only in the browser */ (() => {
   };
 })();
 
+/** Shape of `manifest.json`; anything malformed is treated as absent. */
+interface TextureManifest {
+  bodies?: Record<string, string[]>;
+  env?: string[];
+}
+
+let manifestPromise: Promise<TextureManifest | null> | null = null;
+
+/**
+ * Fetches the asset manifest once per session.
+ *
+ * A missing manifest is a normal state, not an error: it means "no imagery is
+ * deployed, use the procedural surfaces", which is how the app ships.
+ */
+export function loadTextureManifest(): Promise<TextureManifest | null> {
+  manifestPromise ??= fetch(`${TEXTURE_BASE}/manifest.json`)
+    .then((response) => (response.ok ? (response.json() as Promise<TextureManifest>) : null))
+    .then((manifest) => (manifest && typeof manifest === "object" ? manifest : null))
+    .catch(() => null);
+  return manifestPromise;
+}
+
+/** Whether the manifest advertises a given map. */
+async function isDeclared(slug: string, slot: TextureSlot): Promise<boolean> {
+  const manifest = await loadTextureManifest();
+  return manifest?.bodies?.[slug]?.includes(slot) ?? false;
+}
+
 /**
  * Loads one map, falling back to its procedural twin. Every rejection path is
  * handled here — callers get a texture or null, never a throw.
@@ -308,8 +346,11 @@ function loadSlot(
   const cached = textureCache.get(key);
   if (cached) return cached;
 
-  const pending = loader()
-    .loadAsync(assetUrl(slug, slot))
+  const pending = isDeclared(slug, slot)
+    .then((declared) => {
+      if (!declared) throw new Error("not declared");
+      return loader().loadAsync(assetUrl(slug, slot));
+    })
     .then((texture) => {
       texture.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
       texture.wrapS = THREE.RepeatWrapping;

@@ -11,6 +11,7 @@ Drop real imagery in to upgrade specific bodies; no code changes are needed.
 
 ```
 public/textures/
+  manifest.json                  declares what exists — see below
   bodies/<slug>/albedo.jpg       base colour, sRGB
   bodies/<slug>/normal.jpg       tangent-space normals (topography), linear
   bodies/<slug>/roughness.jpg    roughness / ocean mask, linear
@@ -18,6 +19,32 @@ public/textures/
   bodies/<slug>/ring.png         radial ring profile, density in ALPHA
   env/starfield.hdr              8K equirectangular skybox
 ```
+
+## manifest.json
+
+**Adding a file is not enough — it must also be listed here.** Nothing is
+requested unless the manifest declares it:
+
+```json
+{
+  "bodies": {
+    "earth": ["albedo", "normal", "roughness", "clouds"],
+    "saturn": ["albedo", "ring"]
+  },
+  "env": ["starfield"]
+}
+```
+
+The extra bookkeeping buys something concrete. Without it, a deployment with
+no imagery — the default — fires a 404 for every map of every visible body on
+startup. The fallbacks still work, but the console fills with red and real
+errors get buried. One manifest request replaces all of them, and the shipped
+manifest is empty precisely so the default deployment makes zero failing
+requests.
+
+Anything the manifest omits silently uses its procedural equivalent, so a
+half-populated manifest is a valid state: declare `earth` only, and Earth gets
+photography while everything else stays procedural.
 
 `<slug>` is the lowercased body name as it appears in the preset:
 `sun`, `mercury`, `venus`, `earth`, `moon`, `mars`, `jupiter`, `saturn`,
@@ -39,8 +66,10 @@ those to change the look of every unnamed body at once.
 - **Ring maps** are a 1-D radial profile: `u = 0` is the inner edge, `u = 1`
   the outer edge. The mesh supplies radial UVs, so a square ring image will
   not work — use a wide, short strip.
-- **The skybox** is loaded as a Radiance `.hdr`. It is HEAD-probed before it is
-  requested, so a missing file costs one 404 and never an error boundary.
+- **The skybox** is loaded as a Radiance `.hdr`, and only when the manifest
+  lists `"starfield"` under `env`. It has to be gated: drei's `<Environment>`
+  loads through suspense and throws to an error boundary on a 404, so
+  requesting it speculatively would break the first paint.
 
 ## Serving from a CDN
 

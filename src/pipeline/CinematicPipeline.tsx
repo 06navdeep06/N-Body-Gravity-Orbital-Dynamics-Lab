@@ -14,13 +14,26 @@
  *   2. God rays     radially blur the star's occlusion mask.
  *   3. Bloom        blooms the result, including the rays.
  *   4. Depth of field
- *   5. Lens flare   is a lens artifact and therefore belongs last, on top of
- *                   the finished image.
- *   6. Tone mapping maps the accumulated HDR range back to display range.
+ *   5. Tone mapping maps the accumulated HDR range back to display range.
  *
  * The composer disables the renderer's own tone mapping while mounted, which
  * is why the ToneMapping effect is mandatory rather than decorative — without
  * it a bloomed star clips to flat white.
+ *
+ * ## Why there is no <LensFlare> pass
+ *
+ * @react-three/postprocessing's `<LensFlare>` cannot be used on React 19.
+ * It builds its effect through `wrapEffect`, which returns a *plain* function
+ * component and memoises the effect's constructor args on
+ * `JSON.stringify(props)`. React 19 delivers `ref` as an ordinary prop to
+ * plain function components, and `<LensFlare>` passes itself a ref — so from
+ * the second render onward that stringify walks the mounted effect, hits the
+ * `__r3f` instance r3f attaches to it, and throws
+ * "Converting circular structure to JSON", taking the whole canvas down.
+ *
+ * The screen-space flare therefore comes from `<StarEffects />`, which uses
+ * three's own `Lensflare` object with procedurally generated sprites. Same
+ * visual, no post-pass, and it was already in the scene.
  */
 
 import { useFrame } from "@react-three/fiber";
@@ -29,7 +42,6 @@ import {
   DepthOfField,
   EffectComposer,
   GodRays,
-  LensFlare,
   ToneMapping,
   Vignette,
 } from "@react-three/postprocessing";
@@ -67,24 +79,12 @@ const BLOOM_THRESHOLD = 1.05;
 const GODRAY_SAMPLES = 60;
 
 /**
- * Body-count ceiling for the lens flare.
- *
- * `<LensFlare />` raycasts the whole scene graph every frame to work out how
- * occluded the star is. Against an instanced mesh holding several hundred
- * bodies that is a real per-frame cost, and the presets with that many bodies
- * (Asteroid Belt, Galaxy Collision) are exactly the ones with no frame time to
- * spare. Below the ceiling the raycast is negligible.
- */
-const LENS_FLARE_MAX_BODIES = 64;
-
-/**
  * Frame-loop scratch. Module-scoped rather than per-component, both to avoid
- * a per-frame allocation and because these are written from `useFrame` — a
- * value produced by a hook must not be mutated after render. Only one
- * pipeline is ever mounted, so there is nothing to collide with.
+ * a per-frame allocation and because it is written from `useFrame` — a value
+ * produced by a hook must not be mutated after render. Only one pipeline is
+ * ever mounted, so there is nothing to collide with.
  */
 const focusPoint = new THREE.Vector3();
-const flarePosition = new THREE.Vector3();
 
 /** Tracks the registered star meshes without re-rendering every frame. */
 function useStarMeshVersion(): number {
@@ -132,20 +132,6 @@ function FocusTracker({ effectRef }: { effectRef: RefObject<DepthOfFieldEffect |
   return null;
 }
 
-/**
- * Keeps the lens flare's world position on the primary star, for the same
- * reason as above: it moves every frame and must not drive a re-render.
- */
-function StarFlareTracker({ starId }: { starId: string | null }) {
-  useFrame(() => {
-    if (!starId) return;
-    const body = useSimulationStore.getState().system.bodies.find((b) => b.id === starId);
-    if (body) flarePosition.set(body.position.x, body.position.y, body.position.z);
-  });
-
-  return null;
-}
-
 export function CinematicPipeline() {
   const features = useQualityPreset();
   const showLensing = useSimulationStore((s) => s.showLensing);
@@ -162,19 +148,12 @@ export function CinematicPipeline() {
    * zustand's default Object.is check and the component stays still.
    */
   const starId = useSimulationStore((s) => dominantStar(s.system.bodies)?.id ?? null);
-  const starColor = useSimulationStore((s) => dominantStar(s.system.bodies)?.color ?? "#ffffff");
-  const bodyCount = useSimulationStore((s) => s.system.bodies.length);
   const hasBlackHole = useSimulationStore(
     (s) => findBlackHoles(s.system.bodies, s.system.G, s.speedOfLight).length > 0
   );
 
   const dofRef = useRef<DepthOfFieldEffect>(null);
   const starVersion = useStarMeshVersion();
-
-  const flareGain = useMemo(
-    () => new THREE.Color(starColor).multiplyScalar(18),
-    [starColor]
-  );
 
   // God rays need the star's actual mesh to build its occlusion mask, which
   // only exists once <PhotorealisticBody /> has mounted it. Recomputed when
@@ -186,7 +165,6 @@ export function CinematicPipeline() {
   );
 
   const lensing = showLensing && hasBlackHole;
-  const lensFlare = features.lensFlare && starId !== null && bodyCount <= LENS_FLARE_MAX_BODIES;
 
   if (!features.postProcessing) return null;
 
@@ -244,26 +222,6 @@ export function CinematicPipeline() {
     );
   }
 
-  if (lensFlare) {
-    passes.push(
-      <LensFlare
-        key="lensflare"
-        lensPosition={flarePosition}
-        glareSize={0.24}
-        flareSize={0.008}
-        starPoints={6}
-        haloScale={4.5}
-        // colorGain is an HDR gain, not a 0-1 colour — the effect's own
-        // default is Color(20,20,20), so an unscaled body colour would make
-        // the flare invisible.
-        colorGain={flareGain}
-        secondaryGhosts
-        aditionalStreaks
-        animated={false}
-      />
-    );
-  }
-
   if (features.preset === "cinematic") {
     passes.push(
       <Vignette key="vignette" offset={0.32} darkness={0.55} blendFunction={BlendFunction.NORMAL} />
@@ -277,7 +235,6 @@ export function CinematicPipeline() {
   return (
     <>
       <FocusTracker effectRef={dofRef} />
-      <StarFlareTracker starId={starId} />
       <EffectComposer
         // MSAA is a real cost and only buys visibly cleaner ring and debris
         // silhouettes, which is a cinematic-tier concern.

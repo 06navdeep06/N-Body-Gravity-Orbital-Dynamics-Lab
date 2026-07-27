@@ -22,6 +22,7 @@ import { Environment, Stars } from "@react-three/drei";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useQualityPreset } from "@/lib/render/quality-preset";
 import { proceduralStarfield } from "@/lib/textures/procedural";
+import { loadTextureManifest } from "@/lib/textures/texture-library";
 
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 const TEXTURE_BASE = process.env.NEXT_PUBLIC_TEXTURE_BASE ?? `${BASE_PATH}/textures`;
@@ -33,23 +34,24 @@ const ENVIRONMENT_INTENSITY = 0.35;
 type ProbeResult = "pending" | "present" | "absent";
 
 /**
- * HEAD-probes the HDRI once per session.
+ * Asks the shared texture manifest whether a skybox is deployed.
  *
- * Unconditional, even at the Low preset: it is a single HEAD request, and
- * doing it up front means switching to Medium later swaps in the real sky
- * immediately instead of after a round trip.
+ * Going through the manifest rather than requesting the file and handling the
+ * failure matters here: drei's `<Environment files>` loads through suspense
+ * and throws to the nearest error boundary on a 404, so mounting it
+ * speculatively would put the app in an error state on first paint for every
+ * deployment that ships no HDRI — which is the default one.
  */
 function useHdriProbe(): ProbeResult {
   const [result, setResult] = useState<ProbeResult>("pending");
 
   useEffect(() => {
     let cancelled = false;
-    fetch(HDRI_URL, { method: "HEAD" })
-      .then((response) => {
-        if (!cancelled) setResult(response.ok ? "present" : "absent");
+    loadTextureManifest()
+      .then((manifest) => {
+        if (!cancelled) setResult(manifest?.env?.includes("starfield") ? "present" : "absent");
       })
       .catch(() => {
-        // Offline, CORS-blocked, or simply not deployed — all mean "fall back".
         if (!cancelled) setResult("absent");
       });
     return () => {

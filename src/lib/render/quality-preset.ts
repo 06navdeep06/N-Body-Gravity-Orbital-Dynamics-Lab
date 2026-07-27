@@ -56,6 +56,11 @@ export interface RenderFeatures {
   postProcessing: boolean;
   bloom: boolean;
   depthOfField: boolean;
+  /**
+   * Star coronas and lens flares in `<StarEffects />`. Not a post-pass —
+   * see the note in CinematicPipeline on why `<LensFlare />` is unusable
+   * here.
+   */
   lensFlare: boolean;
   godRays: boolean;
   /** Equirectangular HDRI / procedural starfield background. */
@@ -102,6 +107,7 @@ const MEDIUM: RenderFeatures = {
   instancedDebris: true,
   postProcessing: true,
   bloom: true,
+  lensFlare: true,
   environmentMap: true,
   featuredBodyBudget: 8,
   debrisBudget: 600,
@@ -117,7 +123,6 @@ const CINEMATIC: RenderFeatures = {
   dynamicShadows: true,
   shadowMapSize: 2048,
   depthOfField: true,
-  lensFlare: true,
   godRays: true,
   featuredBodyBudget: 14,
   debrisBudget: 1500,

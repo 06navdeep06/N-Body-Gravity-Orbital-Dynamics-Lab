@@ -13,6 +13,7 @@ import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import { Lensflare, LensflareElement } from "three/examples/jsm/objects/Lensflare.js";
 import type { CelestialBody } from "@/lib/physics/types";
+import { useQualityPreset } from "@/lib/render/quality-preset";
 import { useA11yStore } from "@/lib/stores/a11y-store";
 import { useSimulationStore } from "@/lib/stores/simulation-store";
 
@@ -76,6 +77,11 @@ export function StarEffects() {
   const maxDisplayRadius = useSimulationStore((s) => s.maxDisplayRadius);
   // Sparkle coronas and lens flares are decoration, not information.
   const reducedMotion = useA11yStore((s) => s.reducedMotion);
+  // This is the app's lens flare: the post-processing library's <LensFlare>
+  // pass is unusable on React 19 (see CinematicPipeline), so the screen-space
+  // flare is three's own Lensflare object, gated by the same quality flag it
+  // would have been.
+  const { lensFlare } = useQualityPreset();
 
   const stars = useMemo(() => {
     const totalMass = bodies.reduce((sum, b) => sum + b.mass, 0);
@@ -85,7 +91,7 @@ export function StarEffects() {
       .slice(0, MAX_STARS);
   }, [bodies]);
 
-  if (reducedMotion) return null;
+  if (reducedMotion || !lensFlare) return null;
 
   return (
     <>
