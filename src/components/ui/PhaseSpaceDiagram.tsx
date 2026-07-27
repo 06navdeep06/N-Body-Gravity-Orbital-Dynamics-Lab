@@ -159,7 +159,7 @@ export function PhaseSpaceDiagram() {
 
   return (
     <div
-      className="pointer-events-auto absolute bottom-16 right-4 z-20 rounded-lg border border-zinc-700 bg-zinc-950/95 shadow-xl"
+      className="pointer-events-auto absolute bottom-20 right-2 z-20 max-w-[calc(100vw-1rem)] rounded-lg sm:bottom-16 sm:right-4 border border-zinc-700 bg-zinc-950/95 shadow-xl"
       style={{ transform: `translate(${offset.x}px, ${offset.y}px)` }}
     >
       <div

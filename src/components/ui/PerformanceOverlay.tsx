@@ -81,7 +81,7 @@ export function PerformanceOverlay() {
 
   return (
     <div
-      className="pointer-events-auto absolute bottom-16 left-1/2 z-30 w-72 -translate-x-1/2 rounded-lg border border-zinc-700 bg-zinc-950/95 p-3 font-mono text-[10px] text-zinc-200 shadow-xl"
+      className="pointer-events-auto absolute bottom-20 left-1/2 z-30 w-72 max-w-[calc(100vw-1rem)] sm:bottom-16 -translate-x-1/2 rounded-lg border border-zinc-700 bg-zinc-950/95 p-3 font-mono text-[10px] text-zinc-200 shadow-xl"
       role="complementary"
       aria-label="Performance profiler"
     >

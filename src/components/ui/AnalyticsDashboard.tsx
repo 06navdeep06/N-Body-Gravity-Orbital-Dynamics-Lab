@@ -178,7 +178,7 @@ export function AnalyticsDashboard() {
 
   return (
     <div
-      className="pointer-events-auto absolute inset-0 z-40 overflow-y-auto bg-zinc-950/98 p-4"
+      className="pointer-events-auto absolute inset-0 z-40 overflow-y-auto bg-zinc-950/98 p-2 sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-label="Analytics dashboard"

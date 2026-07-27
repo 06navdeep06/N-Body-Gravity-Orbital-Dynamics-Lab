@@ -47,7 +47,7 @@ export function MLDashboard() {
   const fill = stats ? Math.min(100, (stats.samples / REPLAY_CAPACITY) * 100) : 0;
 
   return (
-    <div className="pointer-events-auto absolute bottom-16 right-4 z-20 w-64 rounded-lg border border-zinc-700 bg-zinc-950/95 shadow-xl">
+    <div className="pointer-events-auto absolute bottom-20 right-2 z-20 w-64 max-w-[calc(100vw-1rem)] sm:bottom-16 sm:right-4 rounded-lg border border-zinc-700 bg-zinc-950/95 shadow-xl">
       <div className="flex items-center justify-between border-b border-zinc-800 px-2.5 py-1.5">
         <h3 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-300">
           <Brain size={12} />

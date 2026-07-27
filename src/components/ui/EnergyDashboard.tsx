@@ -25,7 +25,9 @@ export function EnergyDashboard() {
   const fpsColor = fps >= 55 ? "text-emerald-400" : fps >= 30 ? "text-amber-400" : "text-red-400";
 
   return (
-    <div className="absolute right-4 top-4 w-64 rounded-lg border border-zinc-800 bg-zinc-950/85 p-3 font-mono text-[11px] text-zinc-200 backdrop-blur">
+    // Sits below the top chrome on small screens, where the chrome's right
+    // cluster occupies the corner this would otherwise share with it.
+    <div className="absolute right-2 top-16 w-56 rounded-lg border border-zinc-800 bg-zinc-950/85 p-3 font-mono text-[10px] text-zinc-200 backdrop-blur sm:text-[11px] lg:right-4 lg:top-4 lg:w-64">
       <div className="mb-1 flex items-center justify-between">
         <PhysicsTooltip term="fps">
           <span className="text-zinc-500">FPS</span>

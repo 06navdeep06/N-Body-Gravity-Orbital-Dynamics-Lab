@@ -79,14 +79,14 @@ export function BodyInspector() {
 
   if (!body) {
     return (
-      <div className="w-72 border-l border-zinc-800 bg-zinc-950/90 p-4 text-xs text-zinc-500">
-        Select a body to inspect it.
+      <div className="h-full w-72 max-w-[85vw] border-l border-zinc-800 bg-zinc-950/95 p-4 text-xs text-zinc-500 max-lg:pt-12 lg:bg-zinc-950/90">
+        Select a body to inspect it — tap or click it in the viewport.
       </div>
     );
   }
 
   return (
-    <div className="flex w-72 flex-col gap-3 overflow-y-auto border-l border-zinc-800 bg-zinc-950/90 p-4 text-zinc-100">
+    <div className="flex h-full w-72 max-w-[85vw] flex-col gap-3 overflow-y-auto border-l border-zinc-800 bg-zinc-950/95 p-4 text-zinc-100 max-lg:pt-12 lg:bg-zinc-950/90">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span

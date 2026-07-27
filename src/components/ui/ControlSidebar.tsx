@@ -206,7 +206,9 @@ export function ControlSidebar() {
   };
 
   return (
-    <div className="flex h-full w-72 flex-col gap-4 overflow-y-auto border-r border-zinc-800 bg-zinc-950/90 p-4 text-zinc-100">
+    // `max-lg:pt-12` clears the drawer's close button, which is positioned
+    // over this panel's top-right corner on small screens.
+    <div className="flex h-full w-72 max-w-[85vw] flex-col gap-4 overflow-y-auto border-r border-zinc-800 bg-zinc-950/95 p-4 text-zinc-100 max-lg:pt-12 lg:bg-zinc-950/90">
       <div className="flex items-center gap-2.5">
         <img
           src="/textures/logo.png"
@@ -601,11 +603,11 @@ export function ControlSidebar() {
         <h2 className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
           General Relativity
         </h2>
-        <Row label="Enable GR Precession">
+        <Row label="Post-Newtonian Gravity">
           <Toggle
             checked={enableGR}
             onChange={toggleEnableGR}
-            title="Adds the leading-order post-Newtonian (Schwarzschild) correction to gravity — the same effect that causes Mercury's perihelion to slowly advance. Forces direct O(N²) summation while enabled."
+            title="Adds two post-Newtonian corrections: 1PN Schwarzschild precession (the effect that advances Mercury's perihelion) and 2.5PN gravitational-wave radiation reaction, which drains orbital energy so close binaries spiral in and merge. Forces direct O(N²) summation while enabled."
           />
         </Row>
         {enableGR && (

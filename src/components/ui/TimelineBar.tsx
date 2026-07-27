@@ -45,26 +45,29 @@ export function TimelineBar() {
   const isLive = history.length === 0 || historyIndex >= history.length - 1;
 
   return (
-    <div className="pointer-events-auto absolute inset-x-0 bottom-0 flex items-center gap-3 border-t border-zinc-800 bg-zinc-950/90 px-4 py-2 text-zinc-100 backdrop-blur">
+    // The scrubber keeps a whole row to itself below `sm` — a range input
+    // sharing a row with four buttons on a phone is too narrow to aim at.
+    <div className="pointer-events-auto absolute inset-x-0 bottom-0 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-zinc-800 bg-zinc-950/90 px-2 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] text-zinc-100 backdrop-blur sm:flex-nowrap sm:px-4">
       <button
         onClick={() => (isRunning ? pause() : play())}
-        className="flex items-center justify-center rounded-md bg-zinc-800 p-2 hover:bg-zinc-700"
+        className="flex min-h-11 min-w-11 items-center justify-center rounded-md bg-zinc-800 hover:bg-zinc-700 sm:min-h-0 sm:min-w-0 sm:p-2"
         title={isRunning ? "Pause" : "Play"}
       >
-        {isRunning ? <Pause size={14} /> : <Play size={14} />}
+        {isRunning ? <Pause size={16} /> : <Play size={16} />}
       </button>
 
       <input
         type="range"
+        aria-label="Scrub history"
         min={0}
         max={Math.max(0, history.length - 1)}
         value={Math.max(0, historyIndex)}
         disabled={history.length === 0}
         onChange={(e) => handleScrub(Number(e.target.value))}
-        className="flex-1 accent-sky-500"
+        className="order-last w-full accent-sky-500 sm:order-none sm:w-auto sm:flex-1"
       />
 
-      <span className="w-28 shrink-0 text-right font-mono text-[11px] text-zinc-400">
+      <span className="ml-auto shrink-0 text-right font-mono text-[11px] text-zinc-400 sm:ml-0 sm:w-28">
         {history.length === 0
           ? "no history"
           : `${historyIndex + 1}/${history.length}${isLive ? " (live)" : ""}`}
@@ -73,7 +76,7 @@ export function TimelineBar() {
       <div className="relative">
         <button
           onClick={handleSaveSnapshot}
-          className="flex items-center gap-1 rounded-md bg-zinc-800 px-2 py-2 text-[11px] hover:bg-zinc-700"
+          className="flex min-h-11 items-center gap-1 rounded-md bg-zinc-800 px-3 text-[11px] hover:bg-zinc-700 sm:min-h-0 sm:px-2 sm:py-2"
           title="Save current state as a snapshot"
         >
           <Bookmark size={14} />
@@ -84,7 +87,7 @@ export function TimelineBar() {
       <div className="relative">
         <button
           onClick={() => setShowSnapshots((v) => !v)}
-          className="rounded-md bg-zinc-800 px-2 py-2 text-[11px] hover:bg-zinc-700"
+          className="min-h-11 rounded-md bg-zinc-800 px-3 text-[11px] hover:bg-zinc-700 sm:min-h-0 sm:px-2 sm:py-2"
         >
           Snapshots ({snapshots.length})
         </button>

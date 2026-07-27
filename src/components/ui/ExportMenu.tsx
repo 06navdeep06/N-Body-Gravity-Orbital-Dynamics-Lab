@@ -99,12 +99,17 @@ export function ExportMenu() {
     <div className="pointer-events-auto relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className={`flex items-center gap-2 rounded-md px-3 py-2 text-xs font-medium shadow-lg ring-1 ring-zinc-700 ${
+        title="Export data, images, video or a share link"
+        className={`flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-md px-3 text-xs font-medium shadow-lg ring-1 ring-zinc-700 max-sm:px-0 ${
           recording ? "bg-red-900/90 text-red-100" : "bg-zinc-900/90 text-zinc-100 hover:bg-zinc-800"
         }`}
       >
-        <Download size={14} />
-        {recording ? "REC…" : "Export"}
+        <Download size={16} />
+        {/* Label collapses to the icon on phones, where the chrome row is
+            competing for width; `sr-only` keeps it for screen readers. */}
+        <span className={recording ? undefined : "max-sm:sr-only"}>
+          {recording ? "REC…" : "Export"}
+        </span>
       </button>
 
       {open && (

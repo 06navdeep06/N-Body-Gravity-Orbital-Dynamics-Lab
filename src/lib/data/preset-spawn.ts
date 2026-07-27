@@ -25,6 +25,7 @@ import {
   CANONICAL_REFERENCE_MASS,
   CANONICAL_REFERENCE_RADIUS,
   MIN_SIM_RADIUS,
+  getPresetByName,
   type AstronomicalPreset,
 } from '@/lib/data/astronomical-presets';
 import type { CelestialBody, Vector3D } from '@/lib/physics/types';
@@ -51,12 +52,23 @@ export const CANONICAL_SCALE: SceneScale = {
 /**
  * Measures the loaded scene's unit system against the catalogue's.
  *
- * The heaviest body in the scene is the yardstick: whatever it is, it plays
- * the role the Sun plays in the canonical system, so `massScale` is its mass
- * expressed in canonical Suns and `lengthScale` its radius in canonical solar
- * radii. In the Real Solar System preset both come out to exactly 1 (the Sun
- * *is* the reference), which is the property that makes this safe to leave on
- * by default — for the one scene already in catalogue units it is a no-op.
+ * The heaviest body in the scene is the yardstick, and it is interpreted
+ * against *its own* catalogue entry where one exists. That second half is not
+ * a nicety — it is what makes this function idempotent, and without it the
+ * whole scheme is broken:
+ *
+ *   Normalising against "the Sun is 1" instead means spawning Sagittarius A*
+ *   (4.3×10⁶ M☉) makes it the heaviest body, so the *next* spawn measures a
+ *   scale of 4.3×10⁶ and a second Sagittarius A* arrives at 1.8×10¹³ — four
+ *   million times heavier than the first. The pair does not orbit; the lighter
+ *   one is flung out of the scene.
+ *
+ * Dividing by the reference's catalogue mass instead gives a scale that is a
+ * fixed point: spawn a catalogue body at scale S and the scene still measures
+ * S afterwards, so repeated spawns compose. A body the catalogue does not know
+ * (the toy presets' "Black Hole", a procedurally generated star) falls back to
+ * being treated as one canonical Sun — and once a catalogue body is spawned
+ * into that scene, it too becomes a fixed point.
  *
  * Deliberately keyed to a single body rather than, say, the scene's bounding
  * box: a scene's spatial extent depends on how far out its outermost body
@@ -70,9 +82,13 @@ export function sceneScale(bodies: readonly CelestialBody[]): SceneScale {
   }
   if (!reference || reference.mass <= 0 || reference.radius <= 0) return CANONICAL_SCALE;
 
+  const known = getPresetByName(reference.name);
+  const referenceMass = known ? known.simMass : CANONICAL_REFERENCE_MASS;
+  const referenceRadius = known ? known.simRadius : CANONICAL_REFERENCE_RADIUS;
+
   return {
-    massScale: reference.mass / CANONICAL_REFERENCE_MASS,
-    lengthScale: reference.radius / CANONICAL_REFERENCE_RADIUS,
+    massScale: reference.mass / referenceMass,
+    lengthScale: reference.radius / referenceRadius,
     referenceName: reference.name,
   };
 }
@@ -258,15 +274,44 @@ export function buildSpawnedBody(options: SpawnOptions): CelestialBody {
   return body;
 }
 
-/** Catalogue orbit suggestion converted into the scene's length units. */
+/** Farthest any body sits from `origin`; 0 for an empty or single-body scene. */
+export function sceneExtent(bodies: readonly CelestialBody[], origin: Vector3D): number {
+  let extent = 0;
+  for (const body of bodies) {
+    const distance = Math.hypot(
+      body.position.x - origin.x,
+      body.position.y - origin.y,
+      body.position.z - origin.z
+    );
+    if (distance > extent) extent = distance;
+  }
+  return extent;
+}
+
+/**
+ * Catalogue orbit suggestion converted into the scene's length units, then
+ * bounded at both ends.
+ *
+ * The floor exists because a moon's catalogue orbit is measured around its own
+ * planet — put Phobos around the Sun and its 9,376 km orbit is inside the
+ * photosphere.
+ *
+ * The ceiling exists because a catalogue distance can be right and useless at
+ * the same time. The toy "Sun & Planet" preset puts its planet 3.3 stellar
+ * radii out; Jupiter's real orbit is 1,119, so the faithful conversion spawns
+ * it at ~3360 units in a scene that spans 10, where the user simply never sees
+ * it again. Where the scene disagrees with astronomy about its own proportions,
+ * the scene wins for the *default* — the periapsis field is right there, and
+ * typing the true distance still does exactly what it says.
+ */
 export function suggestedOrbitRadius(
   preset: AstronomicalPreset,
   scale: SceneScale,
-  hostRadius: number
+  hostRadius: number,
+  extent = 0
 ): number {
   const suggested = (preset.defaultOrbitRadius ?? 1) * scale.lengthScale;
-  // A moon's catalogue orbit is measured around its own planet; around a
-  // different host it can land inside the host's surface. Push it clear.
   const floor = (hostRadius + preset.simRadius * scale.lengthScale) * 3;
-  return Math.max(suggested, floor);
+  const ceiling = extent > 0 ? Math.max(extent * 1.5, floor) : Infinity;
+  return Math.min(Math.max(suggested, floor), ceiling);
 }

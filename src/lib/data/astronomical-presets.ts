@@ -782,6 +782,20 @@ export function getPresetById(id: string): AstronomicalPreset | undefined {
   return BY_ID.get(id);
 }
 
+const BY_NAME = new Map(ASTRONOMICAL_PRESETS.map((p) => [p.name.trim().toLowerCase(), p]));
+
+/**
+ * Looks a body up by display name, case-insensitively.
+ *
+ * Bodies keep their catalogue name when spawned, so this is how a body already
+ * in the scene can be recognised as a catalogue object later — which is what
+ * lets `sceneScale` stay idempotent. The texture library keys its render
+ * profiles off the same name for the same reason.
+ */
+export function getPresetByName(name: string): AstronomicalPreset | undefined {
+  return BY_NAME.get(name.trim().toLowerCase());
+}
+
 const CATEGORY_LABELS = new Map(PRESET_CATEGORIES.map((c) => [c.id, c.label.toLowerCase()]));
 
 /**

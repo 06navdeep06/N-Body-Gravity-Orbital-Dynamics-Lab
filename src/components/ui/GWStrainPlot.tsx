@@ -122,7 +122,7 @@ export function GWStrainPlot() {
   if (!show) return null;
 
   return (
-    <div className="pointer-events-auto absolute right-4 top-56 z-20 w-[330px] rounded-lg border border-zinc-700 bg-zinc-950/95 shadow-xl">
+    <div className="pointer-events-auto absolute right-2 top-56 z-20 w-[330px] max-w-[calc(100vw-1rem)] sm:right-4 rounded-lg border border-zinc-700 bg-zinc-950/95 shadow-xl">
       <div className="flex items-center justify-between border-b border-zinc-800 px-2.5 py-1.5">
         <h3 className="text-[11px] font-semibold uppercase tracking-wide text-zinc-300">
           GW Strain (quadrupole)

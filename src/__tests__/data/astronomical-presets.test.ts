@@ -27,6 +27,7 @@ import {
   CANONICAL_SCALE,
   buildSpawnedBody,
   orbitalStateVectors,
+  sceneExtent,
   sceneScale,
   suggestedOrbitRadius,
 } from "@/lib/data/preset-spawn";
@@ -238,6 +239,54 @@ describe("sceneScale", () => {
 
   it("falls back to canonical when the heaviest body is degenerate", () => {
     expect(sceneScale([makeBody({ mass: 0, radius: 0 })])).toEqual(CANONICAL_SCALE);
+  });
+
+  /**
+   * Regression: normalising against "the Sun is 1" made the scale compound.
+   * Spawning Sagittarius A* made it the heaviest body, so the next spawn
+   * measured a scale of 4.3e6 and produced a second hole 4 million times
+   * heavier than the first — which promptly flung it out of the scene instead
+   * of orbiting it. Recognising the reference by name makes the scale a fixed
+   * point.
+   */
+  it("is idempotent: spawning a catalogue body does not move the scale", () => {
+    for (const startingScene of [
+      [] as CelestialBody[],
+      [makeBody({ name: "Sun", mass: 1, radius: 695700 / AU_KM })],
+      [makeBody({ name: "Black Hole", mass: 6000, radius: 2.4 })],
+    ]) {
+      let bodies = startingScene;
+      const scales: number[] = [];
+
+      for (let i = 0; i < 4; i++) {
+        const scale = sceneScale(bodies);
+        scales.push(scale.massScale);
+        bodies = [
+          ...bodies,
+          buildSpawnedBody({
+            preset: byId("sgr-a-star"),
+            scale,
+            position: { x: 10 * (i + 1), y: 0, z: 0 },
+            velocity: { x: 0, y: 0, z: 0 },
+          }),
+        ];
+      }
+
+      // Every spawn after the first sees the same scale as the one before it.
+      for (const massScale of scales.slice(1)) {
+        expect(massScale).toBeCloseTo(scales[1]!, 9);
+      }
+      // ...and every spawned body therefore has the same mass.
+      const spawned = bodies.slice(startingScene.length);
+      for (const body of spawned) expect(body.mass).toBeCloseTo(spawned[0]!.mass, 6);
+    }
+  });
+
+  it("recognises the reference body by its catalogue name", () => {
+    const scale = sceneScale([makeBody({ name: "Jupiter", mass: 9.5e-4, radius: 4.7e-4 })]);
+    // Jupiter's catalogue mass is 9.54e-4 M☉, so a scene whose heaviest body
+    // *is* Jupiter is already in catalogue units — scale ≈ 1, not 9.5e-4.
+    expect(scale.massScale).toBeCloseTo(1, 2);
   });
 });
 
@@ -459,6 +508,22 @@ describe("buildSpawnedBody", () => {
   });
 });
 
+describe("sceneExtent", () => {
+  it("is zero for an empty scene", () => {
+    expect(sceneExtent([], { x: 0, y: 0, z: 0 })).toBe(0);
+  });
+
+  it("measures the farthest body from the given origin", () => {
+    const bodies = [
+      makeBody({ id: "a", position: { x: 3, y: 4, z: 0 } }),
+      makeBody({ id: "b", position: { x: 1, y: 0, z: 0 } }),
+    ];
+    expect(sceneExtent(bodies, { x: 0, y: 0, z: 0 })).toBeCloseTo(5, 9);
+    // Re-centred on the far body, the extent is measured from there instead.
+    expect(sceneExtent(bodies, { x: 3, y: 4, z: 0 })).toBeCloseTo(Math.hypot(2, 4), 9);
+  });
+});
+
 describe("suggestedOrbitRadius", () => {
   it("uses the catalogue distance when it clears the host", () => {
     expect(suggestedOrbitRadius(byId("earth"), CANONICAL_SCALE, 0.0047)).toBeCloseTo(1, 9);
@@ -468,5 +533,33 @@ describe("suggestedOrbitRadius", () => {
     // Phobos' 9,376 km orbit is far inside the Sun.
     const radius = suggestedOrbitRadius(byId("phobos"), CANONICAL_SCALE, byId("sun").simRadius);
     expect(radius).toBeGreaterThan(byId("sun").simRadius);
+  });
+
+  /**
+   * The toy presets are not built to astronomical proportions — "Sun & Planet"
+   * puts its planet ~3 stellar radii out where Jupiter's real orbit is 1,119.
+   * A faithful conversion there spawns Jupiter thousands of units away, off
+   * screen and effectively lost.
+   */
+  it("keeps the default inside a scene that disagrees with astronomy", () => {
+    const scale = { massScale: 1000, lengthScale: 645, referenceName: "Sun" };
+    const unbounded = suggestedOrbitRadius(byId("jupiter"), scale, 3);
+    const bounded = suggestedOrbitRadius(byId("jupiter"), scale, 3, 20);
+    expect(unbounded).toBeGreaterThan(3000);
+    expect(bounded).toBeCloseTo(30, 6);
+  });
+
+  it("leaves a to-scale scene's suggestion alone", () => {
+    // Real Solar System: extent ~30 AU, Jupiter at 5.2 AU is well inside it.
+    expect(suggestedOrbitRadius(byId("jupiter"), CANONICAL_SCALE, 0.0047, 30)).toBeCloseTo(
+      5.2044,
+      6
+    );
+  });
+
+  it("never lets the ceiling push a body inside its host", () => {
+    // A tiny extent must not win over the anti-collision floor.
+    const radius = suggestedOrbitRadius(byId("earth"), CANONICAL_SCALE, 0.5, 0.01);
+    expect(radius).toBeGreaterThan(0.5);
   });
 });

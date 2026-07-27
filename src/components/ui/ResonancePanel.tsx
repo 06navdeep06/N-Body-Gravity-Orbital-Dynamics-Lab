@@ -120,7 +120,7 @@ export function ResonancePanel() {
   if (!show) return null;
 
   return (
-    <div className="pointer-events-auto absolute bottom-16 left-4 z-20 w-[316px] rounded-lg border border-zinc-700 bg-zinc-950/95 shadow-xl">
+    <div className="pointer-events-auto absolute bottom-20 left-2 z-20 w-[316px] max-w-[calc(100vw-1rem)] sm:bottom-16 sm:left-4 rounded-lg border border-zinc-700 bg-zinc-950/95 shadow-xl">
       <div className="flex items-center justify-between border-b border-zinc-800 px-2.5 py-1.5">
         <h3 className="text-[11px] font-semibold uppercase tracking-wide text-zinc-300">
           Orbital Resonances

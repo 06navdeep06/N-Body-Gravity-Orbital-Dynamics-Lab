@@ -124,7 +124,7 @@ export function TransferPlanner() {
     : 0;
 
   return (
-    <div className="pointer-events-auto absolute left-1/2 top-14 z-30 w-80 -translate-x-1/2 rounded-lg border border-zinc-700 bg-zinc-950/95 p-3 text-zinc-100 shadow-2xl">
+    <div className="pointer-events-auto absolute left-1/2 top-14 z-30 w-80 max-w-[calc(100vw-1rem)] -translate-x-1/2 rounded-lg border border-zinc-700 bg-zinc-950/95 p-3 text-zinc-100 shadow-2xl">
       <div className="mb-2 flex items-center justify-between">
         <h3 className="text-sm font-semibold">Transfer Planner</h3>
         <button

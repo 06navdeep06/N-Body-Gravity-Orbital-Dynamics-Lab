@@ -7,6 +7,7 @@
  * orbit, and nothing would be on screen.
  */
 
+import { MAX_PN_FRACTION } from "@/lib/physics/gr-correction";
 import { circularOrbitVelocity } from "@/lib/utils/orbital-velocity";
 import type { CelestialBody } from "@/lib/physics/types";
 import type { Preset } from "@/lib/stores/simulation-store";
@@ -125,7 +126,14 @@ function binaryBlackHoleInspiral(): Preset {
 
   // Equal masses: each orbits the barycenter at half the separation with
   // v = sqrt(G*m_total/(2*separation)) — the two-body circular solution.
-  const vRel = Math.sqrt((G * (2 * m)) / separation);
+  //
+  // Reduced by the 1PN limiter, because this preset runs with GR on and at
+  // 5.5 r_s the limiter is saturated: the net radial acceleration really is
+  // (1 − MAX_PN_FRACTION) of the Newtonian value, so the *Newtonian* circular
+  // speed is too fast here and the pair would visibly spring apart before
+  // radiation reaction pulled it back in. Launching at the circular speed for
+  // the force law actually in force starts it round.
+  const vRel = Math.sqrt(((1 - MAX_PN_FRACTION) * G * (2 * m)) / separation);
   const speed = vRel / 2;
 
   const bodies: CelestialBody[] = [
@@ -155,7 +163,7 @@ function binaryBlackHoleInspiral(): Preset {
     id: "binary-bh-inspiral",
     name: "Binary Black Hole Inspiral",
     description:
-      "Two equal-mass black holes at 5.5 r_s separation with GR precession on. The GW strain plot chirps as the orbit tightens.",
+      "Two equal-mass black holes at 5.5 r_s separation. Post-Newtonian gravity is on, so gravitational-wave emission drains the orbit and they spiral in and merge within a few orbits — the GW strain plot chirps as it tightens.",
     // dt 0.004 still gives ~1600 RK4 steps per orbit (far more than needed
     // for accuracy) while advancing fast enough that a full GW cycle is
     // visible in the strain plot within a few seconds of wall time.

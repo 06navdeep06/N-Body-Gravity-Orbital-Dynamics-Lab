@@ -4,7 +4,9 @@
  * single formula.
  */
 
-import { calculateEnergyMetrics } from "@/lib/physics/rk4";
+import { detectAndResolveCollisions } from "@/lib/physics/collisions";
+import { calculateAccelerationsWithGR } from "@/lib/physics/gr-correction";
+import { calculateEnergyMetrics, stepRK4 } from "@/lib/physics/rk4";
 import type { CelestialBody, SystemState } from "@/lib/physics/types";
 import { PRESETS, getPresetById } from "@/lib/presets";
 import { useSimulationStore } from "@/lib/stores/simulation-store";
@@ -195,6 +197,59 @@ describe("share-link round trip", () => {
       expect(decoded!.bodies).toHaveLength(preset.state.bodies.length);
       expect(decoded!.G).toBe(preset.state.G);
     }
+  });
+});
+
+/**
+ * End-to-end regression for the reported "two black holes drift apart instead
+ * of colliding". Two separate defects produced it: the 1PN correction was
+ * unbounded and repulsive at these separations (5.5 r_s -> 210 r_s and
+ * climbing), and nothing ever drained orbital energy, so even a stable binary
+ * could never merge. This runs the preset exactly as the worker does.
+ */
+describe("Binary Black Hole Inspiral preset", () => {
+  const preset = getPresetById("binary-bh-inspiral")!;
+
+  const separation = (s: SystemState): number =>
+    Math.hypot(
+      s.bodies[0]!.position.x - s.bodies[1]!.position.x,
+      s.bodies[0]!.position.y - s.bodies[1]!.position.y,
+      s.bodies[0]!.position.z - s.bodies[1]!.position.z
+    );
+
+  it("is configured for GR with a speed of light", () => {
+    expect(preset.enableGR).toBe(true);
+    expect(preset.speedOfLight).toBeGreaterThan(0);
+  });
+
+  it("spirals in and merges instead of drifting apart", () => {
+    let state: SystemState = JSON.parse(JSON.stringify(preset.state));
+    const accel = calculateAccelerationsWithGR(preset.speedOfLight!);
+    const start = separation(state);
+    let merged = false;
+    let maximum = start;
+
+    for (let i = 0; i < 20000; i++) {
+      state = stepRK4(state, accel);
+      maximum = Math.max(maximum, separation(state));
+      const { bodies, events } = detectAndResolveCollisions(state);
+      if (events.length > 0) {
+        state = { ...state, bodies };
+        merged = true;
+        break;
+      }
+    }
+
+    expect(merged).toBe(true);
+    expect(state.bodies).toHaveLength(1);
+    // The merged remnant keeps both masses and is still a black hole.
+    expect(state.bodies[0]!.mass).toBeCloseTo(
+      preset.state.bodies[0]!.mass + preset.state.bodies[1]!.mass,
+      6
+    );
+    expect(state.bodies[0]!.isBlackHole).toBe(true);
+    // It must never wander outward on the way in — that was the bug.
+    expect(maximum).toBeLessThan(start * 1.02);
   });
 });
 

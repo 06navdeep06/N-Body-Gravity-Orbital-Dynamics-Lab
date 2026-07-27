@@ -37,7 +37,7 @@ graph LR
 | `tidal-disruption.ts` | Roche-limit fragmentation — replaces a body with N shrapnel particles |
 | `tidal.ts` | Hill sphere, Roche limit, and tidal acceleration calculations |
 | `orbital-elements.ts` | State vector → six classical Keplerian elements + orbit classification |
-| `gr-correction.ts` | Post-Newtonian (Schwarzschild) perturbative acceleration for GR precession |
+| `gr-correction.ts` | Post-Newtonian corrections: 1PN Schwarzschild precession + 2.5PN gravitational-wave radiation reaction (binaries inspiral and merge). Both bounded by `MAX_PN_FRACTION` so the truncated series can never overwhelm or reverse Newtonian gravity |
 | `lagrange.ts` | L1–L5 solver — bisection-safeguarded Newton-Raphson for the collinear points (unguarded Newton diverges across the singularities at each primary), closed-form equilateral solution for L4/L5 |
 | `transfer-orbits.ts` | Hohmann, bi-elliptic, and Lambert solver for transfer orbit planning |
 | `poincare.ts` | Poincaré section crossing detection in polar coordinates |

@@ -32,7 +32,7 @@ export function FormulaOverlay() {
   if (!show) return null;
 
   return (
-    <div className="pointer-events-none absolute bottom-16 left-4 w-80 space-y-3 rounded-lg border border-zinc-800 bg-zinc-950/90 p-3 backdrop-blur">
+    <div className="pointer-events-none absolute bottom-20 left-2 w-80 max-w-[calc(100vw-1rem)] sm:bottom-16 sm:left-4 space-y-3 rounded-lg border border-zinc-800 bg-zinc-950/90 p-3 backdrop-blur">
       <h3 className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
         Physics Reference
       </h3>

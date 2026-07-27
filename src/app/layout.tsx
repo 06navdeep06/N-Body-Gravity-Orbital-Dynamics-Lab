@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "katex/dist/katex.min.css";
 import "./globals.css";
@@ -36,6 +36,19 @@ export const metadata: Metadata = {
     description: "A 3D N-body gravitational simulation and orbital dynamics lab.",
     images: ["/textures/logo.png"],
   },
+};
+
+/**
+ * `viewportFit: "cover"` lets the scene run under a notch/home indicator; the
+ * chrome that must stay clear of them uses the `safe-area-inset-*` env vars.
+ * Zoom is deliberately left enabled — pinch-zoom is a genuine accessibility
+ * affordance, and the canvas handles its own gestures.
+ */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#000000",
 };
 
 export default function RootLayout({

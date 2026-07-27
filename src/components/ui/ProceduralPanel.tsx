@@ -154,7 +154,7 @@ export function ProceduralPanel() {
 
   return (
     <div
-      className="pointer-events-auto absolute inset-0 z-40 flex items-center justify-center bg-black/70 p-6"
+      className="pointer-events-auto absolute inset-0 z-40 flex items-center justify-center overflow-y-auto bg-black/70 p-2 sm:p-6"
       role="dialog"
       aria-modal="true"
       aria-label="Procedural universe generator"

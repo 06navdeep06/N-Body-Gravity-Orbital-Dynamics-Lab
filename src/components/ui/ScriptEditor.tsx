@@ -72,7 +72,7 @@ export function ScriptEditor() {
   };
 
   return (
-    <div className="pointer-events-auto absolute inset-0 z-40 flex items-center justify-center bg-black/70 p-6">
+    <div className="pointer-events-auto absolute inset-0 z-40 flex items-center justify-center overflow-y-auto bg-black/70 p-2 sm:p-6">
       <div className="flex h-full max-h-[680px] w-full max-w-3xl flex-col rounded-lg border border-zinc-700 bg-zinc-950 shadow-2xl">
         <div className="flex items-center justify-between border-b border-zinc-800 px-3 py-2">
           <h3 className="text-sm font-semibold text-zinc-100">Scenario Script</h3>

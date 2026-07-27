@@ -8,7 +8,13 @@
  *   Δϖ = 6πGM / (a c² (1 − e²))   radians per orbit.
  */
 
-import { calculateAccelerationsWithGR, grCorrectionAcceleration } from "@/lib/physics/gr-correction";
+import {
+  MAX_PN_FRACTION,
+  calculateAccelerationsWithGR,
+  grCorrectionAcceleration,
+  gravitationalWavePower,
+  radiationReactionAccelerations,
+} from "@/lib/physics/gr-correction";
 import { computeOrbitalElements } from "@/lib/physics/orbital-elements";
 import { calculateAccelerations, stepRK4 } from "@/lib/physics/rk4";
 import type { CelestialBody, SystemState } from "@/lib/physics/types";
@@ -130,5 +136,188 @@ describe("GR correction", () => {
     if (delta > Math.PI) delta = 2 * Math.PI - delta;
     // Pure Newtonian ellipses are closed: any drift is integration error.
     expect(delta).toBeLessThan(0.02);
+  });
+});
+
+/**
+ * Regression: the 1PN radial term carries +4GM/r and therefore points *away*
+ * from the source. Uncapped it overtakes Newtonian gravity inside r = 2 r_s
+ * and reverses it, which used to fling the Binary Black Hole Inspiral preset
+ * from 5.5 r_s out past 210 r_s instead of merging it.
+ */
+describe("1PN limiter", () => {
+  const c = 40;
+  const M = 2500;
+  const rs = (2 * G * M) / (c * c);
+
+  const pair = (separation: number): [CelestialBody, CelestialBody] => [
+    {
+      id: "a", name: "A", mass: M, position: { x: 0, y: 0, z: 0 },
+      velocity: { x: 0, y: 0, z: 0 }, color: "#000", radius: rs,
+    },
+    {
+      id: "b", name: "B", mass: M, position: { x: separation, y: 0, z: 0 },
+      velocity: { x: 0, y: 0, z: 0 }, color: "#000", radius: rs,
+    },
+  ];
+
+  it("never lets the correction exceed its share of the Newtonian term", () => {
+    for (const separation of [0.5 * rs, rs, 2 * rs, 5 * rs, 50 * rs, 5000 * rs]) {
+      const [a, b] = pair(separation);
+      const correction = length(grCorrectionAcceleration(b, a, G, c));
+      const newtonian = (G * M) / separation ** 2;
+      expect(correction / newtonian).toBeLessThanOrEqual(MAX_PN_FRACTION + 1e-12);
+    }
+  });
+
+  it("leaves gravity attractive at every separation", () => {
+    for (const separation of [0.5 * rs, rs, 2 * rs, 3 * rs, 10 * rs]) {
+      const [a, b] = pair(separation);
+      const total = calculateAccelerationsWithGR(c)([a, b], G, 0);
+      // B sits at +x from A, so a net attraction must accelerate it toward -x.
+      expect(total[1]!.x).toBeLessThan(0);
+      expect(total[0]!.x).toBeGreaterThan(0);
+    }
+  });
+
+  it("does not engage where the expansion is valid", () => {
+    // The precession test's regime: r = 20, r_s = 2GM/c^2 with M=1000, c=120.
+    const star: CelestialBody = {
+      id: "s", name: "S", mass: 1000, position: { x: 0, y: 0, z: 0 },
+      velocity: { x: 0, y: 0, z: 0 }, color: "#fff", radius: 1,
+    };
+    const planet: CelestialBody = {
+      id: "p", name: "P", mass: 1e-6, position: { x: 20, y: 0, z: 0 },
+      velocity: { x: 0, y: 0, z: -Math.sqrt((G * 1000) / 20) }, color: "#fff", radius: 0.1,
+    };
+    const ratio = length(grCorrectionAcceleration(planet, star, G, 120)) / ((G * 1000) / 400);
+    expect(ratio).toBeLessThan(MAX_PN_FRACTION);
+    expect(ratio).toBeGreaterThan(0);
+  });
+});
+
+describe("gravitational-wave radiation reaction", () => {
+  const G_ = 1;
+
+  function circularBinary(m: number, separation: number, speedFactor = 1): SystemState {
+    const vRel = speedFactor * Math.sqrt((G_ * 2 * m) / separation);
+    return {
+      bodies: [
+        {
+          id: "a", name: "A", mass: m,
+          position: { x: -separation / 2, y: 0, z: 0 },
+          velocity: { x: 0, y: 0, z: -vRel / 2 },
+          color: "#000", radius: separation * 0.02,
+        },
+        {
+          id: "b", name: "B", mass: m,
+          position: { x: separation / 2, y: 0, z: 0 },
+          velocity: { x: 0, y: 0, z: vRel / 2 },
+          color: "#000", radius: separation * 0.02,
+        },
+      ],
+      timeStep: 1e-4,
+      G: G_,
+      softening: 0,
+    };
+  }
+
+  it("matches the Peters circular-orbit luminosity", () => {
+    const m = 10;
+    const r = 100;
+    const { bodies } = circularBinary(m, r);
+    const [a, b] = bodies as [CelestialBody, CelestialBody];
+    const c = 500;
+
+    // P = (32/5) G^4 m1^2 m2^2 (m1+m2) / (c^5 r^5) for a circular orbit.
+    const expected = (32 / 5) * (G_ ** 4 * m ** 2 * m ** 2 * (2 * m)) / (c ** 5 * r ** 5);
+    expect(gravitationalWavePower(a, b, G_, c)).toBeCloseTo(expected, 20);
+  });
+
+  it("radiates nothing when c is unset", () => {
+    const { bodies } = circularBinary(10, 100);
+    expect(gravitationalWavePower(bodies[0]!, bodies[1]!, G_, 0)).toBe(0);
+  });
+
+  it("conserves linear momentum exactly", () => {
+    const { bodies } = circularBinary(10, 30);
+    const accelerations = radiationReactionAccelerations(bodies, G_, 60);
+    for (const axis of ["x", "y", "z"] as const) {
+      const net = bodies.reduce((sum, body, i) => sum + body.mass * accelerations[i]![axis], 0);
+      expect(net).toBeCloseTo(0, 15);
+    }
+  });
+
+  it("removes energy rather than adding it", () => {
+    const { bodies } = circularBinary(10, 30);
+    const accelerations = radiationReactionAccelerations(bodies, G_, 60);
+    // dE/dt = sum m_i a_i . v_i must be negative for a radiating binary.
+    const power = bodies.reduce(
+      (sum, body, i) =>
+        sum +
+        body.mass *
+          (accelerations[i]!.x * body.velocity.x +
+            accelerations[i]!.y * body.velocity.y +
+            accelerations[i]!.z * body.velocity.z),
+      0
+    );
+    expect(power).toBeLessThan(0);
+  });
+
+  const separation = (s: SystemState) =>
+    Math.hypot(
+      s.bodies[0]!.position.x - s.bodies[1]!.position.x,
+      s.bodies[0]!.position.y - s.bodies[1]!.position.y,
+      s.bodies[0]!.position.z - s.bodies[1]!.position.z
+    );
+
+  it("shrinks a close binary monotonically", () => {
+    const m = 2500;
+    const c = 40;
+    const rs = (2 * G_ * m) / (c * c);
+    // Launched at the circular speed for the force law actually in force —
+    // the 1PN limiter is saturated at this separation, so the Newtonian
+    // circular speed would start the pair on an eccentric orbit instead.
+    let state = circularBinary(m, rs * 5.5, Math.sqrt(1 - MAX_PN_FRACTION));
+    state = { ...state, timeStep: 0.004 };
+    const accel = calculateAccelerationsWithGR(c);
+
+    let previous = separation(state);
+    const start = previous;
+    // 900 steps keeps the run short of the plunge, where the two bodies
+    // interpenetrate and the point-mass model stops meaning anything (the
+    // real system merges there — see the preset integration test below).
+    for (let i = 0; i < 900; i++) {
+      state = stepRK4(state, accel);
+      const current = separation(state);
+      expect(current).toBeLessThanOrEqual(previous + 1e-9);
+      previous = current;
+    }
+    expect(previous).toBeLessThan(start * 0.9);
+  });
+
+  it("leaves a binary's separation constant when GR is off", () => {
+    let state = circularBinary(2500, 17.1875);
+    state = { ...state, timeStep: 0.004 };
+    const start = separation(state);
+    for (let i = 0; i < 900; i++) state = stepRK4(state);
+    expect(separation(state)).toBeCloseTo(start, 6);
+  });
+
+  it("is negligible for a wide, slow orbit", () => {
+    // Earth around the Sun in AU / M_sun / yr, with a realistic c.
+    const G_solar = 4 * Math.PI ** 2;
+    const c = 63241; // AU per year
+    const sun: CelestialBody = {
+      id: "sun", name: "Sun", mass: 1, position: { x: 0, y: 0, z: 0 },
+      velocity: { x: 0, y: 0, z: 0 }, color: "#fdb813", radius: 0.0047,
+    };
+    const earth: CelestialBody = {
+      id: "earth", name: "Earth", mass: 3e-6, position: { x: 1, y: 0, z: 0 },
+      velocity: { x: 0, y: 0, z: -2 * Math.PI }, color: "#4f94cd", radius: 4e-5,
+    };
+    const accelerations = radiationReactionAccelerations([sun, earth], G_solar, c);
+    const newtonian = G_solar / 1;
+    expect(length(accelerations[1]!) / newtonian).toBeLessThan(1e-15);
   });
 });
