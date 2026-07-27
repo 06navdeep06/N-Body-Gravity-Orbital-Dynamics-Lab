@@ -102,6 +102,8 @@ interface SimulationState {
   gpuMaxBodies: number | null;
 
   scriptEditorOpen: boolean;
+  proceduralPanelOpen: boolean;
+  analyticsOpen: boolean;
 
   cameraMode: CameraMode;
   /** Visual-only radius multiplier (see Preset.visualRadiusScale). */
@@ -169,6 +171,8 @@ interface SimulationState {
   setGpuInfo: (info: { adapterLabel: string; maxBodies: number } | null) => void;
   setActiveBackend: (backend: ComputeBackend) => void;
   setScriptEditorOpen: (open: boolean) => void;
+  setProceduralPanelOpen: (open: boolean) => void;
+  setAnalyticsOpen: (open: boolean) => void;
   toggleEnableGR: () => void;
   setSpeedOfLight: (c: number) => void;
 
@@ -230,6 +234,8 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   gpuMaxBodies: null,
 
   scriptEditorOpen: false,
+  proceduralPanelOpen: false,
+  analyticsOpen: false,
 
   cameraMode: "free",
   visualRadiusScale: 1,
@@ -338,6 +344,8 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
         : { gpuAdapterLabel: null, gpuMaxBodies: null }
     ),
   setScriptEditorOpen: (scriptEditorOpen) => set({ scriptEditorOpen }),
+  setProceduralPanelOpen: (proceduralPanelOpen) => set({ proceduralPanelOpen }),
+  setAnalyticsOpen: (analyticsOpen) => set({ analyticsOpen }),
   toggleEnableGR: () => set((s) => ({ enableGR: !s.enableGR })),
   setSpeedOfLight: (speedOfLight) => set({ speedOfLight }),
 

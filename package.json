@@ -7,7 +7,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.worker.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.worker.json",
+    "type-check": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.worker.json",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",
@@ -26,6 +30,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/jest": "^30.0.0",
     "@types/node": "^26.1.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
@@ -33,8 +38,10 @@
     "@webgpu/types": "^0.1.71",
     "eslint": "^9",
     "eslint-config-next": "16.2.12",
+    "jest": "^30.4.2",
     "raw-loader": "^4.0.2",
     "tailwindcss": "^4",
+    "ts-jest": "^29.4.12",
     "typescript": "^5"
   }
 }

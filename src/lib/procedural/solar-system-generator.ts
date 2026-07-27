@@ -137,6 +137,13 @@ export function generateSolarSystem(partial: Partial<SolarSystemParams> = {}): S
     const inclination = (rng.rayleigh(params.inclinationSigmaDeg) * Math.PI) / 180;
 
     const { position, velocity } = stateFromElements(rng, starMass, a, e, inclination);
+
+    // A planet's drawn radius must stay well inside its own Hill sphere —
+    // otherwise the body is nominally larger than the region it gravitationally
+    // controls, which is not only unphysical but leaves no room for moons.
+    const hill = a * Math.cbrt(mass / (3 * starMass));
+    const radius = Math.min(radiusFromMass(mass, 0.02), hill * 0.08);
+
     const planet: CelestialBody = {
       id: `planet-${n}`,
       name: `Planet ${String.fromCharCode(98 + n)}`, // b, c, d… as in exoplanet naming
@@ -144,7 +151,7 @@ export function generateSolarSystem(partial: Partial<SolarSystemParams> = {}): S
       position,
       velocity,
       color: PLANET_COLORS[n % PLANET_COLORS.length]!,
-      radius: radiusFromMass(mass, 0.02),
+      radius: Math.max(0.06, radius),
     };
     bodies.push(planet);
     planets.push({ body: planet, a });
@@ -169,7 +176,10 @@ export function generateSolarSystem(partial: Partial<SolarSystemParams> = {}): S
 
       const local = stateFromElements(rng, planet.mass, moonA, e, inclination);
       bodies.push({
-        id: `${planet.id}-moon-${m}`,
+        // Deliberately not prefixed with the planet id: `planet-3-moon-0`
+        // would also match a `startsWith("planet-")` filter, which makes
+        // simple id-prefix grouping silently wrong.
+        id: `moon-${planet.id.replace("planet-", "")}-${m}`,
         name: `${planet.name} ${["I", "II", "III", "IV", "V"][m] ?? m + 1}`,
         mass: moonMass,
         position: {

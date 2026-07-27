@@ -33,5 +33,7 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "**/*.worker.ts"]
+  // Tests are type-checked by tsconfig.test.json, which supplies the jest
+  // globals; including them here would need @types/jest in the app program.
+  "exclude": ["node_modules", "**/*.worker.ts", "src/__tests__/**", "jest.config.ts"]
 }
