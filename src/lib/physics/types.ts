@@ -35,6 +35,12 @@ export interface CelestialBody {
    * flag — the physics is the same Newtonian/post-Newtonian gravity.
    */
   isBlackHole?: boolean;
+  /**
+   * Debris from a tidal disruption. Fragments are rendered as stretched
+   * stream particles and are exempt from further disruption (otherwise
+   * shredding would cascade without bound).
+   */
+  isFragment?: boolean;
 }
 
 export interface SystemState {

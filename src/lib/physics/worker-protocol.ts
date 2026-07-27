@@ -8,6 +8,7 @@
  */
 
 import type { CollisionEvent } from "./collisions";
+import type { TidalDisruptionEvent } from "./tidal-disruption";
 import type { EnergyMetrics, SystemState } from "./types";
 
 /** Sent by the main thread to request N integration steps. */
@@ -35,6 +36,8 @@ export interface PhysicsStepRequest {
    * encounters. Defaults to false.
    */
   adaptiveTimestep?: boolean;
+  /** Shreds bodies that cross a heavy body's Roche limit. Defaults to false. */
+  enableTidalDisruption?: boolean;
 }
 
 /** Sent back to the main thread once the requested steps have run. */
@@ -45,6 +48,8 @@ export interface PhysicsStepResponse {
   state: SystemState;
   metrics: EnergyMetrics;
   collisionEvents: CollisionEvent[];
+  /** Tidal disruption events that fired during this batch. */
+  disruptionEvents: TidalDisruptionEvent[];
   /** Wall-clock time this batch of steps took inside the worker, in ms. */
   stepMs: number;
   /** Total simulation time advanced by this batch (sums actual per-step dt, which varies under adaptive timestep). */

@@ -10,6 +10,7 @@
 
 import { create } from "zustand";
 import type { CollisionEvent } from "@/lib/physics/collisions";
+import type { TidalDisruptionEvent } from "@/lib/physics/tidal-disruption";
 import type { CelestialBody, EnergyMetrics, SystemState, Vector3D } from "@/lib/physics/types";
 
 export const MAX_TRAIL_LENGTH = 600;
@@ -52,6 +53,8 @@ export interface Preset {
   maxDisplayRadius?: number;
   /** How to convert simulation time units to human time for display. */
   timeUnit?: { label: string; earthDaysPerUnit: number };
+  /** Turns on tidal disruption when this preset loads. */
+  enableTidalDisruption?: boolean;
 }
 
 interface SimulationState {
@@ -73,6 +76,7 @@ interface SimulationState {
   useOctree: boolean;
   theta: number;
   adaptiveTimestep: boolean;
+  enableTidalDisruption: boolean;
 
   selectedBodyId: string | null;
   primaryBodyId: string | null;
@@ -116,6 +120,7 @@ interface SimulationState {
   trails: Record<string, Vector3D[]>;
   energyMetrics: EnergyMetrics | null;
   collisionEvents: CollisionEvent[];
+  disruptionEvents: TidalDisruptionEvent[];
   fps: number;
   workerStepMs: number;
 
@@ -144,6 +149,7 @@ interface SimulationState {
   setUseOctree: (v: boolean) => void;
   setTheta: (theta: number) => void;
   setAdaptiveTimestep: (v: boolean) => void;
+  setEnableTidalDisruption: (v: boolean) => void;
 
   toggleShowTrails: () => void;
   toggleShowVelocityArrows: () => void;
@@ -176,6 +182,7 @@ interface SimulationState {
   clearTrails: () => void;
 
   recordCollisions: (events: CollisionEvent[]) => void;
+  recordDisruptions: (events: TidalDisruptionEvent[]) => void;
   setEnergyMetrics: (metrics: EnergyMetrics) => void;
   setFps: (fps: number) => void;
   setWorkerStepMs: (ms: number) => void;
@@ -198,6 +205,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   useOctree: true,
   theta: 0.5,
   adaptiveTimestep: false,
+  enableTidalDisruption: false,
 
   selectedBodyId: null,
   primaryBodyId: null,
@@ -238,6 +246,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   trails: {},
   energyMetrics: null,
   collisionEvents: [],
+  disruptionEvents: [],
   fps: 0,
   workerStepMs: 0,
 
@@ -280,9 +289,11 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       primaryBodyId: null,
       trails: {},
       collisionEvents: [],
+  disruptionEvents: [],
       energyMetrics: null,
       isRunning: false,
       enableGR: preset.enableGR ?? false,
+      enableTidalDisruption: preset.enableTidalDisruption ?? false,
       // Reset rather than carrying over: c controls the Schwarzschild radius
       // used for black-hole rendering, so a leftover value from a black-hole
       // preset would make an ordinary star in the next preset render as one.
@@ -302,6 +313,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   setUseOctree: (useOctree) => set({ useOctree }),
   setTheta: (theta) => set({ theta }),
   setAdaptiveTimestep: (adaptiveTimestep) => set({ adaptiveTimestep }),
+  setEnableTidalDisruption: (enableTidalDisruption) => set({ enableTidalDisruption }),
 
   toggleShowTrails: () => set((s) => ({ showTrails: !s.showTrails })),
   toggleShowVelocityArrows: () => set((s) => ({ showVelocityArrows: !s.showVelocityArrows })),
@@ -352,6 +364,12 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
     if (events.length === 0) return;
     const s = get();
     set({ collisionEvents: [...events, ...s.collisionEvents].slice(0, MAX_COLLISION_LOG) });
+  },
+
+  recordDisruptions: (events) => {
+    if (events.length === 0) return;
+    const s = get();
+    set({ disruptionEvents: [...events, ...s.disruptionEvents].slice(0, MAX_COLLISION_LOG) });
   },
 
   setEnergyMetrics: (energyMetrics) => set({ energyMetrics }),

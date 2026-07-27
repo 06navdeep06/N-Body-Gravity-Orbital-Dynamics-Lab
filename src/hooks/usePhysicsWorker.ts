@@ -21,7 +21,10 @@
 import { useEffect, useRef } from "react";
 import { createGpuEngine, type GpuEngine } from "@/lib/physics/gpu/gpu-engine";
 import { calculateEnergyMetrics } from "@/lib/physics/rk4";
+import type { CollisionEvent } from "@/lib/physics/collisions";
 import { detectAndResolveCollisions } from "@/lib/physics/collisions";
+import type { TidalDisruptionEvent } from "@/lib/physics/tidal-disruption";
+import { detectAndResolveDisruptions } from "@/lib/physics/tidal-disruption";
 import { gwAnalyser } from "@/lib/physics/gravitational-waves";
 import { poincareRecorder } from "@/lib/physics/poincare";
 import type { PhysicsStepRequest, PhysicsWorkerResponse } from "@/lib/physics/worker-protocol";
@@ -43,9 +46,8 @@ function applyResult(
     generation: number;
     stepMs: number;
     elapsedDt: number;
-    collisionEvents?: Parameters<
-      ReturnType<typeof useSimulationStore.getState>["recordCollisions"]
-    >[0];
+    collisionEvents?: CollisionEvent[];
+    disruptionEvents?: TidalDisruptionEvent[];
     metricsPrecomputed?: ReturnType<typeof calculateEnergyMetrics>;
     lastHistoryPushRef: { current: number };
   }
@@ -61,6 +63,9 @@ function applyResult(
   store.addSimTime(options.elapsedDt);
   if (options.collisionEvents && options.collisionEvents.length > 0) {
     store.recordCollisions(options.collisionEvents);
+  }
+  if (options.disruptionEvents && options.disruptionEvents.length > 0) {
+    store.recordDisruptions(options.disruptionEvents);
   }
   if (store.showPhaseSpace) poincareRecorder.record(state, store.primaryBodyId);
   if (store.showGwStrain) {
@@ -109,6 +114,7 @@ export function usePhysicsWorker() {
         stepMs: data.stepMs,
         elapsedDt: data.elapsedDt,
         collisionEvents: data.collisionEvents,
+        disruptionEvents: data.disruptionEvents,
         metricsPrecomputed: data.metrics,
         lastHistoryPushRef,
       });
@@ -192,15 +198,27 @@ export function usePhysicsWorker() {
         void gpu
           .step(state, steps)
           .then((stepped) => {
-            // Collisions stay on the CPU: merging changes the body count,
-            // which would mean re-allocating GPU buffers mid-dispatch.
+            // Collisions and disruptions stay on the CPU: both change the
+            // body count, which would mean re-allocating GPU buffers
+            // mid-dispatch.
             const { bodies, events } = detectAndResolveCollisions(stepped, Date.now());
-            const finalState = events.length > 0 ? { ...stepped, bodies } : stepped;
+            let finalState = events.length > 0 ? { ...stepped, bodies } : stepped;
+
+            let disruptionEvents: TidalDisruptionEvent[] = [];
+            if (useSimulationStore.getState().enableTidalDisruption) {
+              const disruption = detectAndResolveDisruptions(finalState, Date.now());
+              if (disruption.events.length > 0) {
+                finalState = { ...finalState, bodies: disruption.bodies };
+                disruptionEvents = disruption.events;
+              }
+            }
+
             applyResult(finalState, {
               generation,
               stepMs: performance.now() - startedAt,
               elapsedDt: state.timeStep * steps,
               collisionEvents: events,
+              disruptionEvents,
               lastHistoryPushRef,
             });
           })
@@ -231,6 +249,7 @@ export function usePhysicsWorker() {
         enableGR: store.enableGR,
         speedOfLight: store.speedOfLight,
         adaptiveTimestep: store.adaptiveTimestep,
+        enableTidalDisruption: store.enableTidalDisruption,
       };
       workerRef.current.postMessage(request);
     }

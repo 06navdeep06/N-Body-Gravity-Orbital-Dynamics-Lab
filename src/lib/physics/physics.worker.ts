@@ -19,6 +19,8 @@
 
 import type { CollisionEvent } from "./collisions";
 import { detectAndResolveCollisions } from "./collisions";
+import type { TidalDisruptionEvent } from "./tidal-disruption";
+import { detectAndResolveDisruptions } from "./tidal-disruption";
 import { calculateAccelerationsWithGR } from "./gr-correction";
 import type { AccelerationFn } from "./rk4";
 import { calculateEnergyMetrics, stepRK4 } from "./rk4";
@@ -63,6 +65,7 @@ function handleStep(request: PhysicsStepRequest): void {
 
   let currentState = request.state;
   const allCollisionEvents: CollisionEvent[] = [];
+  const allDisruptionEvents: TidalDisruptionEvent[] = [];
   let elapsedDt = 0;
 
   for (let i = 0; i < steps; i++) {
@@ -75,6 +78,14 @@ function handleStep(request: PhysicsStepRequest): void {
     if (events.length > 0) {
       stepped = { ...stepped, bodies };
       allCollisionEvents.push(...events);
+    }
+
+    if (request.enableTidalDisruption) {
+      const disruption = detectAndResolveDisruptions(stepped, Date.now());
+      if (disruption.events.length > 0) {
+        stepped = { ...stepped, bodies: disruption.bodies };
+        allDisruptionEvents.push(...disruption.events);
+      }
     }
 
     let nextDt = currentState.timeStep;
@@ -103,6 +114,7 @@ function handleStep(request: PhysicsStepRequest): void {
     state: currentState,
     metrics,
     collisionEvents: allCollisionEvents,
+    disruptionEvents: allDisruptionEvents,
     stepMs,
     elapsedDt,
   };

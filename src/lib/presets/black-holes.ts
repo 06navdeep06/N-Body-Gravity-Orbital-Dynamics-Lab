@@ -165,4 +165,62 @@ function binaryBlackHoleInspiral(): Preset {
   };
 }
 
-export const BLACK_HOLE_PRESETS: Preset[] = [blackHoleAccretion(), binaryBlackHoleInspiral()];
+// ---------------------------------------------------------------------------
+// Tidal Disruption Event
+// ---------------------------------------------------------------------------
+function tidalDisruptionEvent(): Preset {
+  const G = 1;
+  const M = 2e6; // supermassive
+  const c = 900; // r_s = 2GM/c^2 ≈ 4.94
+  const rs = (2 * G * M) / (c * c);
+
+  // Star on a near-parabolic plunge: apoapsis far out, periapsis inside the
+  // Roche limit so it shreds on its first pass.
+  const star = { mass: 1, radius: 0.9 };
+  const apoapsis = 260;
+  // Roche limit for this pair is ~2.44*R_bh*(rho_bh/rho_star)^(1/3); aim the
+  // periapsis comfortably inside it.
+  const periapsis = 26;
+  const a = (apoapsis + periapsis) / 2;
+  const e = (apoapsis - periapsis) / (apoapsis + periapsis);
+  // Vis-viva at apoapsis, where the star starts.
+  const vApo = Math.sqrt(G * M * (2 / apoapsis - 1 / a));
+
+  const bodies: CelestialBody[] = [
+    {
+      id: id("smbh"),
+      name: "Supermassive Black Hole",
+      mass: M,
+      position: { x: 0, y: 0, z: 0 },
+      velocity: { x: 0, y: 0, z: 0 },
+      color: "#000000",
+      radius: rs,
+      isFixed: true,
+      isBlackHole: true,
+    },
+    {
+      id: id("victim"),
+      name: "Doomed Star",
+      mass: star.mass,
+      position: { x: apoapsis, y: 0, z: 0 },
+      velocity: { x: 0, y: 0, z: -vApo },
+      color: "#ffd27f",
+      radius: star.radius,
+    },
+  ];
+
+  return {
+    id: "tidal-disruption",
+    name: "Tidal Disruption Event",
+    description: `A star falls from ${apoapsis} onto a supermassive black hole (e≈${e.toFixed(2)}). At periapsis the tidal field beats its self-gravity and it shreds into a stream. Tidal disruption is enabled automatically.`,
+    state: { bodies, timeStep: 0.004, G, softening: 0.05 },
+    speedOfLight: c,
+    enableTidalDisruption: true,
+  };
+}
+
+export const BLACK_HOLE_PRESETS: Preset[] = [
+  blackHoleAccretion(),
+  binaryBlackHoleInspiral(),
+  tidalDisruptionEvent(),
+];

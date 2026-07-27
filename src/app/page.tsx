@@ -17,6 +17,7 @@ import { ScriptEditor } from "@/components/ui/ScriptEditor";
 import { ShortcutsCheatsheet } from "@/components/ui/ShortcutsCheatsheet";
 import { TimelineBar } from "@/components/ui/TimelineBar";
 import { TransferPlanner } from "@/components/ui/TransferPlanner";
+import { DisruptionToasts } from "@/components/ui/DisruptionToasts";
 import { Bodies } from "@/components/scene/Bodies";
 import { BlackHole } from "@/components/scene/BlackHole";
 import { ChaosHeatmap } from "@/components/scene/ChaosHeatmap";
@@ -33,6 +34,7 @@ import { SpacetimeGrid } from "@/components/scene/SpacetimeGrid";
 import { StarEffects } from "@/components/scene/StarEffects";
 import { Trails } from "@/components/scene/Trails";
 import { TransferArc } from "@/components/scene/TransferArc";
+import { TidalStream } from "@/components/scene/TidalStream";
 import { VelocityArrows } from "@/components/scene/VelocityArrows";
 import { useAnalysisWorker } from "@/hooks/useAnalysisWorker";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
@@ -81,6 +83,7 @@ export default function Home() {
           <ChaosHeatmap />
           <BlackHole />
           <GWRipple />
+          <TidalStream />
         </Scene>
 
         <div className="absolute left-4 top-4 z-10">
@@ -98,6 +101,7 @@ export default function Home() {
         <GWStrainPlot />
         <TransferPlanner />
         <TimelineBar />
+        <DisruptionToasts />
         <ScriptEditor />
         <ShortcutsCheatsheet />
         <OnboardingTour />

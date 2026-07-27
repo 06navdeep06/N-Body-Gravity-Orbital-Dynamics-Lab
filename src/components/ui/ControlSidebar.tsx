@@ -63,6 +63,8 @@ export function ControlSidebar() {
   const setTheta = useSimulationStore((s) => s.setTheta);
   const adaptiveTimestep = useSimulationStore((s) => s.adaptiveTimestep);
   const setAdaptiveTimestep = useSimulationStore((s) => s.setAdaptiveTimestep);
+  const enableTidalDisruption = useSimulationStore((s) => s.enableTidalDisruption);
+  const setEnableTidalDisruption = useSimulationStore((s) => s.setEnableTidalDisruption);
 
   const showTrails = useSimulationStore((s) => s.showTrails);
   const toggleShowTrails = useSimulationStore((s) => s.toggleShowTrails);
@@ -246,6 +248,13 @@ export function ControlSidebar() {
             checked={adaptiveTimestep}
             onChange={() => setAdaptiveTimestep(!adaptiveTimestep)}
             title="Automatically halves the timestep when energy drift is high (e.g. close encounters) and doubles it back when the system is calm."
+          />
+        </Row>
+        <Row label="Tidal disruption">
+          <Toggle
+            checked={enableTidalDisruption}
+            onChange={() => setEnableTidalDisruption(!enableTidalDisruption)}
+            title="Shreds a body into a fragment stream when it crosses a much heavier body's Roche limit and the tidal field beats its own self-gravity."
           />
         </Row>
       </section>
