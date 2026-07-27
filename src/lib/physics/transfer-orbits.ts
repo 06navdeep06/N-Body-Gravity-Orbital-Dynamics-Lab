@@ -123,8 +123,15 @@ export interface LambertSolution {
  * `prograde` selects the transfer direction (counter-clockwise when viewed
  * from +Y, matching this app's orbit convention).
  *
- * Returns null when no solution converges (e.g. tof too short for the
- * geometry).
+ * Returns null when there is no single solution to return:
+ *  - the time of flight is non-positive, or a position vector is degenerate;
+ *  - the iteration fails to bracket a root (tof too short for the geometry);
+ *  - **the transfer angle is exactly 180°.** That case is genuinely
+ *    ambiguous rather than unsolved: with the two radius vectors antiparallel
+ *    the orbital plane is undetermined, so infinitely many transfer orbits
+ *    (one per plane containing both points) satisfy the constraints. Callers
+ *    wanting the coplanar 180° answer should use `hohmannTransfer`, which
+ *    solves that case in closed form.
  */
 export function solveLambert(
   r1vec: Vector3D,

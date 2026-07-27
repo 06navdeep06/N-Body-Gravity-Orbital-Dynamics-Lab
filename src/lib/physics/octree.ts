@@ -32,22 +32,51 @@ interface Octant {
  *  - an internal node with up to 8 children, tracking the aggregate
  *    mass/center-of-mass of everything beneath it
  */
+/**
+ * Hard cap on subdivision depth.
+ *
+ * Two bodies at identical (or near-identical) positions always fall into the
+ * same octant, so subdividing to separate them never terminates. Past this
+ * depth a leaf simply keeps a bucket of bodies instead of splitting again.
+ */
+const MAX_DEPTH = 24;
+
 export class OctreeNode {
   bounds: Octant;
+  readonly depth: number;
 
   /** Total mass contained in this node's subtree. */
   mass = 0;
   /** Mass-weighted center of mass of this node's subtree. */
   centerOfMass: Vector3D = { x: 0, y: 0, z: 0 };
 
-  /** Set when this node is a leaf directly holding one body. */
-  body: CelestialBody | null = null;
+  /**
+   * Bodies held directly by this leaf. Normally at most one; only a
+   * depth-capped leaf holding coincident bodies has more.
+   */
+  bodies: CelestialBody[] = [];
 
   /** Set once this node has been subdivided into up to 8 octants. */
   children: (OctreeNode | null)[] | null = null;
 
-  constructor(bounds: Octant) {
+  constructor(bounds: Octant, depth = 0) {
     this.bounds = bounds;
+    this.depth = depth;
+  }
+
+  /** The single body in this leaf, if it holds exactly one. */
+  get body(): CelestialBody | null {
+    return this.bodies.length === 1 ? this.bodies[0]! : null;
+  }
+
+  /** True when `position` lies inside this node's cube. */
+  contains(position: Vector3D): boolean {
+    const half = this.bounds.size / 2;
+    return (
+      Math.abs(position.x - this.bounds.cx) <= half &&
+      Math.abs(position.y - this.bounds.cy) <= half &&
+      Math.abs(position.z - this.bounds.cz) <= half
+    );
   }
 
   get isLeaf(): boolean {
@@ -72,17 +101,11 @@ export class OctreeNode {
     };
   }
 
-  private subdivideAndReinsert(existing: CelestialBody): void {
-    this.children = new Array(8).fill(null);
-    this.body = null;
-    this.insertIntoChild(existing);
-  }
-
   private insertIntoChild(body: CelestialBody): void {
     const index = this.octantIndexFor(body.position);
     const children = this.children!;
     if (!children[index]) {
-      children[index] = new OctreeNode(this.childBounds(index));
+      children[index] = new OctreeNode(this.childBounds(index), this.depth + 1);
     }
     children[index]!.insert(body);
   }
@@ -91,23 +114,26 @@ export class OctreeNode {
     // Accumulate aggregate mass / center of mass for every node this body
     // passes through, whether it ends up here as a leaf or deeper down.
     const newMass = this.mass + body.mass;
-    this.centerOfMass = {
-      x: (this.centerOfMass.x * this.mass + body.position.x * body.mass) / newMass,
-      y: (this.centerOfMass.y * this.mass + body.position.y * body.mass) / newMass,
-      z: (this.centerOfMass.z * this.mass + body.position.z * body.mass) / newMass,
-    };
+    if (newMass > 0) {
+      this.centerOfMass = {
+        x: (this.centerOfMass.x * this.mass + body.position.x * body.mass) / newMass,
+        y: (this.centerOfMass.y * this.mass + body.position.y * body.mass) / newMass,
+        z: (this.centerOfMass.z * this.mass + body.position.z * body.mass) / newMass,
+      };
+    }
     this.mass = newMass;
 
-    if (this.isLeaf && this.body === null) {
-      // Empty leaf: just store the body here.
-      this.body = body;
-      return;
-    }
-
-    if (this.isLeaf && this.body !== null) {
-      // Occupied leaf: split into 8 octants and push both bodies down.
-      const existing = this.body;
-      this.subdivideAndReinsert(existing);
+    if (this.isLeaf) {
+      // Empty leaf, or a depth-capped bucket: store here.
+      if (this.bodies.length === 0 || this.depth >= MAX_DEPTH) {
+        this.bodies.push(body);
+        return;
+      }
+      // Occupied leaf: split into octants and push everything down.
+      const existing = this.bodies;
+      this.bodies = [];
+      this.children = new Array(8).fill(null);
+      for (const previous of existing) this.insertIntoChild(previous);
       this.insertIntoChild(body);
       return;
     }
@@ -172,19 +198,36 @@ function accumulateAcceleration(
 ): void {
   if (node.mass === 0) return;
 
-  // Leaf holding the same body as itself contributes nothing (no self-force).
-  if (node.isLeaf && node.body === body) return;
+  const eps2 = softening * softening;
+
+  if (node.isLeaf) {
+    // Sum the leaf's bodies individually (normally one; more only in a
+    // depth-capped bucket of coincident bodies), skipping self-interaction.
+    for (const other of node.bodies) {
+      if (other === body) continue;
+      const offset = sub(other.position, body.position);
+      const distSq = offset.x * offset.x + offset.y * offset.y + offset.z * offset.z + eps2;
+      const dist = Math.sqrt(distSq);
+      const scalar = (G * other.mass) / (distSq * dist);
+      out.x += offset.x * scalar;
+      out.y += offset.y * scalar;
+      out.z += offset.z * scalar;
+    }
+    return;
+  }
 
   const offset = sub(node.centerOfMass, body.position);
-  const eps2 = softening * softening;
   const distSq = offset.x * offset.x + offset.y * offset.y + offset.z * offset.z + eps2;
   const dist = Math.sqrt(distSq);
 
-  const isFarEnough = node.isLeaf || node.bounds.size / dist < theta;
+  // A node that contains this body must always be opened: collapsing it to
+  // a center of mass would fold the body's *own* mass into the force acting
+  // on it. Softening makes this reachable — it floors `dist`, so a small
+  // enclosing node can otherwise satisfy size/dist < theta and be accepted.
+  const enclosesBody = node.contains(body.position);
 
-  if (isFarEnough) {
-    const invDist3 = 1 / (distSq * dist);
-    const scalar = G * node.mass * invDist3;
+  if (!enclosesBody && node.bounds.size / dist < theta) {
+    const scalar = (G * node.mass) / (distSq * dist);
     out.x += offset.x * scalar;
     out.y += offset.y * scalar;
     out.z += offset.z * scalar;

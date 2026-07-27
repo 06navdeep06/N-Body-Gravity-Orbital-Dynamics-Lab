@@ -17,25 +17,50 @@ const EPS = 1e-9;
 const MAX_ITERATIONS = 100;
 const TOLERANCE = 1e-10;
 
-/** Newton-Raphson root find, clamped to stay within (lo, hi). */
-function newtonRaphson(
+/**
+ * Bisection-safeguarded Newton-Raphson on a bracketed root.
+ *
+ * Each collinear equation has a singularity at each primary, so an
+ * unguarded Newton step can leap across one and diverge; clamping it to the
+ * interval edge then leaves it stuck against the boundary. Here a Newton
+ * step is accepted only when it lands strictly inside the current bracket,
+ * and a bisection step is taken otherwise — which keeps Newton's quadratic
+ * convergence in the common case while guaranteeing convergence overall.
+ */
+function solveBracketed(
   f: (x: number) => number,
   fPrime: (x: number) => number,
   x0: number,
   lo: number,
   hi: number
 ): number {
-  let x = x0;
-  const margin = (hi - lo) * 1e-6;
+  let a = lo;
+  let b = hi;
+  let fa = f(a);
+  const fb = f(b);
+  // Without a sign change there is no bracketed root; fall back to the seed.
+  if (!Number.isFinite(fa) || !Number.isFinite(fb) || fa * fb > 0) return x0;
+
+  let x = x0 > a && x0 < b ? x0 : (a + b) / 2;
+
   for (let i = 0; i < MAX_ITERATIONS; i++) {
     const fx = f(x);
-    if (Math.abs(fx) < TOLERANCE) break;
+    if (!Number.isFinite(fx)) break;
+    if (Math.abs(fx) < TOLERANCE || b - a < TOLERANCE) break;
+
+    // Tighten the bracket around the root.
+    if (fa * fx <= 0) {
+      b = x;
+    } else {
+      a = x;
+      fa = fx;
+    }
+
     const dfx = fPrime(x);
-    if (Math.abs(dfx) < EPS) break;
-    let next = x - fx / dfx;
-    // Keep the iterate strictly inside the valid open interval so we don't
-    // jump across one of the (x - x1)/(x - x2) singularities.
-    next = Math.max(lo + margin, Math.min(hi - margin, next));
+    let next = Number.isFinite(dfx) && Math.abs(dfx) > EPS ? x - fx / dfx : Number.NaN;
+    if (!Number.isFinite(next) || next <= a || next >= b) {
+      next = (a + b) / 2; // Newton left the bracket — bisect instead.
+    }
     if (Math.abs(next - x) < TOLERANCE) {
       x = next;
       break;
@@ -60,21 +85,28 @@ function solveCollinearPoints(m1: number, m2: number, r12: number, G: number): [
   // starting point — the iteration converges to the exact root regardless.
   const hillOffset = r12 * Math.cbrt(m2 / (3 * m1));
 
-  // L1: between the bodies. sign(x-x1)=+1, sign(x-x2)=-1.
-  const fL1 = (x: number) => -G * m1 / (x - x1) ** 2 + G * m2 / (x - x2) ** 2 + n2 * (x - xcm);
-  const fL1p = (x: number) => (2 * G * m1) / (x - x1) ** 3 + (2 * G * m2) / (x - x2) ** 3 + n2;
-  const xL1 = newtonRaphson(fL1, fL1p, x2 - hillOffset, x1, x2);
+  // Brackets are opened by a hair so the endpoints avoid the singularities
+  // sitting exactly at x1 and x2.
+  const nudge = r12 * 1e-9;
 
-  // L2: beyond the secondary. sign(x-x1)=+1, sign(x-x2)=+1.
+  // L1: between the bodies. Attraction from m1 pulls -x, from m2 pulls +x.
+  //   f(x) = -Gm₁/(x-x₁)² + Gm₂/(x-x₂)² + n²(x-x_cm)
+  // d/dx of +Gm₂(x-x₂)⁻² is -2Gm₂(x-x₂)⁻³ — the sign here matters, and
+  // getting it wrong drives the iteration onto the bracket edge and parks
+  // L1 on top of the secondary.
+  const fL1 = (x: number) => -G * m1 / (x - x1) ** 2 + G * m2 / (x - x2) ** 2 + n2 * (x - xcm);
+  const fL1p = (x: number) => (2 * G * m1) / (x - x1) ** 3 - (2 * G * m2) / (x - x2) ** 3 + n2;
+  const xL1 = solveBracketed(fL1, fL1p, x2 - hillOffset, x1 + nudge, x2 - nudge);
+
+  // L2: beyond the secondary. Both primaries pull -x.
   const fL2 = (x: number) => -G * m1 / (x - x1) ** 2 - G * m2 / (x - x2) ** 2 + n2 * (x - xcm);
   const fL2p = (x: number) => (2 * G * m1) / (x - x1) ** 3 + (2 * G * m2) / (x - x2) ** 3 + n2;
-  const xL2 = newtonRaphson(fL2, fL2p, x2 + hillOffset, x2, x2 + 10 * r12);
+  const xL2 = solveBracketed(fL2, fL2p, x2 + hillOffset, x2 + nudge, x2 + 10 * r12);
 
-  // L3: beyond the primary, on the far side from the secondary.
-  // sign(x-x1)=-1, sign(x-x2)=-1.
+  // L3: beyond the primary, opposite the secondary. Both pull +x.
   const fL3 = (x: number) => G * m1 / (x - x1) ** 2 + G * m2 / (x - x2) ** 2 + n2 * (x - xcm);
   const fL3p = (x: number) => -(2 * G * m1) / (x - x1) ** 3 - (2 * G * m2) / (x - x2) ** 3 + n2;
-  const xL3 = newtonRaphson(fL3, fL3p, x1 - r12 * (1 + m2 / (3 * m1)), x1 - 10 * r12, x1);
+  const xL3 = solveBracketed(fL3, fL3p, x1 - r12 * (1 + m2 / (3 * m1)), x1 - 10 * r12, x1 - nudge);
 
   return [xL1, xL2, xL3];
 }
