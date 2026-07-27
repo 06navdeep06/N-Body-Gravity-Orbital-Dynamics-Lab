@@ -42,6 +42,14 @@ function mergeBodies(a: CelestialBody, b: CelestialBody): CelestialBody {
     // If either progenitor was fixed (e.g. a planet falling into the
     // central star), the merged body stays fixed.
     isFixed: a.isFixed || b.isFixed || undefined,
+    // A merged black hole is still a black hole.
+    isBlackHole: a.isBlackHole || b.isBlackHole || undefined,
+    // Crucially, debris stays debris. `isFragment` exempts a body from
+    // further tidal disruption; dropping it here lets merged fragments be
+    // shredded again, and since each disruption multiplies the body count
+    // that cascade runs away — observed at 14,000+ bodies from a system
+    // that started with ~200.
+    isFragment: a.isFragment || b.isFragment || undefined,
   };
 }
 

@@ -35,5 +35,15 @@
   ],
   // Tests are type-checked by tsconfig.test.json, which supplies the jest
   // globals; including them here would need @types/jest in the app program.
-  "exclude": ["node_modules", "**/*.worker.ts", "src/__tests__/**", "jest.config.ts"]
+  // `out` is the static export; it contains copies of worker sources under
+  // _next/static/media which would otherwise be type-checked out of context.
+  "exclude": [
+    "node_modules",
+    "out",
+    ".next",
+    "coverage",
+    "**/*.worker.ts",
+    "src/__tests__/**",
+    "jest.config.ts"
+  ]
 }

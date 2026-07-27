@@ -11,7 +11,7 @@ graph LR
   Presets["Presets / Procedural Gen"] --> Store["Zustand Store"]
   Store -->|SystemState| WorkerHook["usePhysicsWorker"]
   WorkerHook -->|postMessage| Worker["physics.worker.ts<br/>(Web Worker)"]
-  WorkerHook -->|stepGPU()| GPU["gpu-engine.ts<br/>(WebGPU Compute)"]
+  WorkerHook -->|step()| GPU["gpu-engine.ts<br/>(WebGPU Compute)"]
   Worker -->|RK4 + Octree + Collisions| Worker
   GPU -->|WGSL Leapfrog| GPU
   Worker -->|PhysicsStepResponse| WorkerHook
@@ -38,7 +38,7 @@ graph LR
 | `tidal.ts` | Hill sphere, Roche limit, and tidal acceleration calculations |
 | `orbital-elements.ts` | State vector → six classical Keplerian elements + orbit classification |
 | `gr-correction.ts` | Post-Newtonian (Schwarzschild) perturbative acceleration for GR precession |
-| `lagrange.ts` | L1–L5 Lagrange point solver (Newton-Raphson for collinear, analytic for triangular) |
+| `lagrange.ts` | L1–L5 solver — bisection-safeguarded Newton-Raphson for the collinear points (unguarded Newton diverges across the singularities at each primary), closed-form equilateral solution for L4/L5 |
 | `transfer-orbits.ts` | Hohmann, bi-elliptic, and Lambert solver for transfer orbit planning |
 | `poincare.ts` | Poincaré section crossing detection in polar coordinates |
 | `resonance.ts` | Mean-motion resonance detection + Kirkwood gap histogram |
@@ -54,7 +54,7 @@ graph LR
 | File | Purpose |
 |------|---------|
 | `nbody-compute.wgsl` | WGSL compute shader — tiled N-body force summation + Leapfrog KDK integration |
-| `gpu-engine.ts` | TypeScript wrapper: device init, buffer management, double-buffering, `stepGPU()` |
+| `gpu-engine.ts` | TypeScript wrapper: device init, buffer pool, pipelines, readback, `step()`. No double-buffering — splitting the Leapfrog into kick-drift and accel-kick passes removes the read-write hazard structurally, so a second buffer set would be wasted VRAM at large N |
 | `wgsl.d.ts` | Module declaration for `.wgsl` imports |
 
 ### `src/lib/stores/` — State Management (Zustand)

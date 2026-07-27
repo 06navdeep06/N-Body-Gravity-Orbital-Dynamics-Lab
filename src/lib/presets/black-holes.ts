@@ -174,9 +174,16 @@ function tidalDisruptionEvent(): Preset {
   const c = 900; // r_s = 2GM/c^2 ≈ 4.94
   const rs = (2 * G * M) / (c * c);
 
-  // Star on a near-parabolic plunge: apoapsis far out, periapsis inside the
-  // Roche limit so it shreds on its first pass.
-  const star = { mass: 1, radius: 0.9 };
+  // Star on a deeply eccentric plunge.
+  //
+  // The radius is tuned, not arbitrary: disruption fires where the tidal
+  // field beats self-gravity, i.e. 2GMR/d³ > Gm/R², so the threshold radius
+  // is d = (2MR³/m)^(1/3). At R = 0.22 that lands near d ≈ 35 — just outside
+  // periapsis, so the star survives most of the infall and shreds close to
+  // closest approach. A fluffier star (R = 0.9) crosses the threshold at
+  // d ≈ 143 and disintegrates almost as soon as it is released, which is
+  // physically correct but reads as unmotivated.
+  const star = { mass: 1, radius: 0.22 };
   const apoapsis = 260;
   // Roche limit for this pair is ~2.44*R_bh*(rho_bh/rho_star)^(1/3); aim the
   // periapsis comfortably inside it.

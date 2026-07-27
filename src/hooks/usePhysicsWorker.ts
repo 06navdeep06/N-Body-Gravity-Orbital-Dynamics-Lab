@@ -27,6 +27,9 @@ import type { TidalDisruptionEvent } from "@/lib/physics/tidal-disruption";
 import { detectAndResolveDisruptions } from "@/lib/physics/tidal-disruption";
 import { gwAnalyser } from "@/lib/physics/gravitational-waves";
 import { poincareRecorder } from "@/lib/physics/poincare";
+import { analyticsRecorder } from "@/lib/analytics/recorder";
+import { profiler } from "@/lib/performance/profiler";
+import { orbitPredictor } from "@/lib/ml/orbit-predictor";
 import type { PhysicsStepRequest, PhysicsWorkerResponse } from "@/lib/physics/worker-protocol";
 import type { SystemState, Vector3D } from "@/lib/physics/types";
 import {
@@ -38,6 +41,8 @@ import { useTimelineStore } from "@/lib/stores/timeline-store";
 
 const FRAME_BUDGET_MS = 16;
 const HISTORY_PUSH_INTERVAL_MS = 200;
+/** Consecutive sub-budget frames before physics work is reduced. */
+const SLOW_FRAME_STREAK = 90;
 
 /** Shared post-step bookkeeping for whichever engine produced the state. */
 function applyResult(
@@ -68,6 +73,11 @@ function applyResult(
     store.recordDisruptions(options.disruptionEvents);
   }
   if (store.showPhaseSpace) poincareRecorder.record(state, store.primaryBodyId);
+  analyticsRecorder.record(state, options.metricsPrecomputed ?? null, store.simTime, store.selectedBodyId);
+  if (store.showMlPredictions) {
+    // Horizon matches MLTrajectory's per-step advance.
+    orbitPredictor.observe(state, store.simTime, state.timeStep * 40);
+  }
   if (store.showGwStrain) {
     gwAnalyser.speedOfLight = store.speedOfLight;
     gwAnalyser.push(state, state.G, store.simTime);
@@ -94,6 +104,7 @@ export function usePhysicsWorker() {
   const lastFrameTimeRef = useRef<number>(0);
   const lastHistoryPushRef = useRef<number>(0);
   const requestIdRef = useRef(0);
+  const slowFrameStreakRef = useRef(0);
 
   // --- CPU worker ---------------------------------------------------------
   useEffect(() => {
@@ -165,15 +176,28 @@ export function usePhysicsWorker() {
       lastFrameTimeRef.current = now;
 
       const store = useSimulationStore.getState();
-      if (frameMs > 0) store.setFps(1000 / frameMs);
+      // Rolling 60-frame average rather than the instantaneous reciprocal:
+      // a single long frame should not read as a permanent FPS collapse.
+      const fps = profiler.frame(now);
+      if (fps > 0) store.setFps(fps);
 
-      if (frameMs > FRAME_BUDGET_MS && store.stepsPerFrame > 1) {
-        const reduced = store.stepsPerFrame - 1;
-        store.setStepsPerFrame(reduced);
-        console.warn(
-          `[physics] frame budget exceeded (${frameMs.toFixed(1)}ms > ${FRAME_BUDGET_MS}ms); reducing stepsPerFrame to ${reduced}`
-        );
+      // Back off physics work only on a *sustained* budget overrun. Reacting
+      // to a single long frame (a GC pause, a preset load) would ratchet
+      // stepsPerFrame down to 1 and never recover it.
+      if (fps > 0 && fps < 1000 / FRAME_BUDGET_MS && store.stepsPerFrame > 1) {
+        slowFrameStreakRef.current += 1;
+        if (slowFrameStreakRef.current > SLOW_FRAME_STREAK) {
+          slowFrameStreakRef.current = 0;
+          const reduced = store.stepsPerFrame - 1;
+          store.setStepsPerFrame(reduced);
+          console.warn(
+            `[physics] sustained frame budget overrun (${fps.toFixed(0)} fps); reducing stepsPerFrame to ${reduced}`
+          );
+        }
+      } else {
+        slowFrameStreakRef.current = 0;
       }
+      void frameMs;
 
       const bodyCount = store.system.bodies.length;
       if (!store.isRunning || pendingRef.current || bodyCount === 0) return;
@@ -237,6 +261,7 @@ export function usePhysicsWorker() {
       if (!workerRef.current) return;
       pendingRef.current = true;
       requestIdRef.current += 1;
+      profiler.begin("physics");
 
       const request: PhysicsStepRequest = {
         type: "STEP",
@@ -252,6 +277,7 @@ export function usePhysicsWorker() {
         enableTidalDisruption: store.enableTidalDisruption,
       };
       workerRef.current.postMessage(request);
+      profiler.end("physics");
     }
 
     rafRef.current = requestAnimationFrame(loop);

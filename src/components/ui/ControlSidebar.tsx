@@ -5,8 +5,12 @@ import { CAMERA_MODES } from "@/lib/camera/camera-modes";
 import { requestChaosMap, cancelChaosMap } from "@/hooks/useAnalysisWorker";
 import { PRESETS } from "@/lib/presets";
 import { useAnalysisStore } from "@/lib/stores/analysis-store";
+import { orbitPredictor } from "@/lib/ml/orbit-predictor";
 import { useSimulationStore } from "@/lib/stores/simulation-store";
 import { useTimelineStore } from "@/lib/stores/timeline-store";
+import { useA11yStore } from "@/lib/stores/a11y-store";
+import { useLocale } from "@/lib/i18n/use-locale";
+import { LOCALES, LOCALE_NAMES, type Locale } from "@/lib/i18n/translations";
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -93,6 +97,8 @@ export function ControlSidebar() {
   const toggleShowGwStrain = useSimulationStore((s) => s.toggleShowGwStrain);
   const showLensing = useSimulationStore((s) => s.showLensing);
   const toggleShowLensing = useSimulationStore((s) => s.toggleShowLensing);
+  const showMlPredictions = useSimulationStore((s) => s.showMlPredictions);
+  const toggleShowMlPredictions = useSimulationStore((s) => s.toggleShowMlPredictions);
 
   const computeBackend = useSimulationStore((s) => s.computeBackend);
   const setComputeBackend = useSimulationStore((s) => s.setComputeBackend);
@@ -102,6 +108,12 @@ export function ControlSidebar() {
   const bodyCount = useSimulationStore((s) => s.system.bodies.length);
   const setScriptEditorOpen = useSimulationStore((s) => s.setScriptEditorOpen);
   const chaosMap = useAnalysisStore((s) => s.chaosMap);
+
+  const { locale, setLocale, t } = useLocale();
+  const colorBlindMode = useA11yStore((s) => s.colorBlindMode);
+  const toggleColorBlindMode = useA11yStore((s) => s.toggleColorBlindMode);
+  const reducedMotion = useA11yStore((s) => s.reducedMotion);
+  const highContrast = useA11yStore((s) => s.highContrast);
 
   const cameraMode = useSimulationStore((s) => s.cameraMode);
   const setCameraMode = useSimulationStore((s) => s.setCameraMode);
@@ -137,24 +149,26 @@ export function ControlSidebar() {
     <div className="flex h-full w-72 flex-col gap-4 overflow-y-auto border-r border-zinc-800 bg-zinc-950/90 p-4 text-zinc-100">
       <div>
         <h1 className="text-sm font-semibold tracking-wide text-zinc-100">
-          N-Body Orbital Dynamics Lab
+          {t("app.title")}
         </h1>
-        <p className="mt-1 text-[11px] text-zinc-500">Phase 3 — advanced simulation lab</p>
+        <p className="mt-1 text-[11px] text-zinc-500">{t("app.subtitle")}</p>
       </div>
 
       <div className="flex gap-2">
         <button
           type="button"
           onClick={togglePlay}
+          aria-label={isRunning ? t("control.pause") : t("control.play")}
           className="flex flex-1 items-center justify-center gap-2 rounded-md bg-sky-600 py-2 text-sm font-medium hover:bg-sky-500"
         >
           {isRunning ? <Pause size={16} /> : <Play size={16} />}
-          {isRunning ? "Pause" : "Play"}
+          {isRunning ? t("control.pause") : t("control.play")}
         </button>
         <button
           type="button"
           onClick={handleReset}
-          title="Reset to the current preset's initial state"
+          title={t("control.resetTitle")}
+          aria-label={t("control.reset")}
           className="flex items-center justify-center rounded-md bg-zinc-800 px-3 hover:bg-zinc-700"
         >
           <RotateCcw size={16} />
@@ -162,12 +176,18 @@ export function ControlSidebar() {
       </div>
 
       <div>
-        <label className="mb-1 block text-xs text-zinc-400">Preset</label>
+        <label htmlFor="preset-picker" className="mb-1 block text-xs text-zinc-400">{t("control.preset")}</label>
         <select
+          id="preset-picker"
           value={presetId}
           onChange={(e) => handlePresetChange(e.target.value)}
           className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs"
         >
+          {/* Placeholder for states that came from a generator, script,
+              share link or snapshot rather than a preset. */}
+          {!PRESETS.some((p) => p.id === presetId) && (
+            <option value={presetId}>Custom scenario</option>
+          )}
           {PRESETS.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
@@ -175,7 +195,8 @@ export function ControlSidebar() {
           ))}
         </select>
         <p className="mt-1 text-[10px] text-zinc-500">
-          {PRESETS.find((p) => p.id === presetId)?.description}
+          {PRESETS.find((p) => p.id === presetId)?.description ??
+            "Custom scenario — generated, scripted, or restored from a link or snapshot."}
         </p>
       </div>
 
@@ -318,6 +339,17 @@ export function ControlSidebar() {
             checked={showGwStrain}
             onChange={toggleShowGwStrain}
             title="Quadrupole gravitational-wave strain plot and expanding wavefronts. Needs a close, comparable-mass binary."
+          />
+        </Row>
+        <Row label="ML Trajectory Preview">
+          <Toggle
+            checked={showMlPredictions}
+            onChange={() => {
+              // Loads TensorFlow.js on first enable (dynamic import).
+              if (!showMlPredictions) void orbitPredictor.init();
+              toggleShowMlPredictions();
+            }}
+            title="Trains a small MLP online and draws its predicted trajectory beside the Keplerian one. Loads TensorFlow.js (~1 MB) on first use."
           />
         </Row>
         <Row label="Lensing (black holes)">
@@ -514,6 +546,44 @@ export function ControlSidebar() {
               className="w-32"
             />
           </Row>
+        )}
+      </section>
+
+      <section className="space-y-2 border-t border-zinc-800 pt-3">
+        <h2 className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
+          {t("section.accessibility")}
+        </h2>
+        <label
+          htmlFor="locale-picker"
+          className="flex items-center justify-between gap-2 text-xs text-zinc-300"
+        >
+          <span className="text-zinc-400">{t("a11y.language")}</span>
+          <select
+            id="locale-picker"
+            value={locale}
+            onChange={(e) => setLocale(e.target.value as Locale)}
+            className="rounded border border-zinc-700 bg-zinc-900 px-1.5 py-1 text-[11px]"
+          >
+            {LOCALES.map((code) => (
+              <option key={code} value={code}>
+                {LOCALE_NAMES[code]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <Row label={t("a11y.colorBlindMode")}>
+          <Toggle
+            checked={colorBlindMode}
+            onChange={toggleColorBlindMode}
+            title="Remaps body colors to the Okabe-Ito palette, which stays distinguishable under all common forms of color vision deficiency."
+          />
+        </Row>
+        {(reducedMotion || highContrast) && (
+          <p className="text-[10px] leading-relaxed text-emerald-400">
+            {reducedMotion && t("a11y.reducedMotion")}
+            {reducedMotion && highContrast && " · "}
+            {highContrast && t("a11y.highContrast")}
+          </p>
         )}
       </section>
 

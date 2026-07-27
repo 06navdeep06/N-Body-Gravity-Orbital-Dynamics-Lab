@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { BarChart3, Globe2 } from "lucide-react";
 import { BodyInspector } from "@/components/ui/BodyInspector";
 import { BodyLauncher } from "@/components/ui/BodyLauncher";
 import { ControlSidebar } from "@/components/ui/ControlSidebar";
@@ -18,6 +19,10 @@ import { ShortcutsCheatsheet } from "@/components/ui/ShortcutsCheatsheet";
 import { TimelineBar } from "@/components/ui/TimelineBar";
 import { TransferPlanner } from "@/components/ui/TransferPlanner";
 import { DisruptionToasts } from "@/components/ui/DisruptionToasts";
+import { AnalyticsDashboard } from "@/components/ui/AnalyticsDashboard";
+import { ProceduralPanel } from "@/components/ui/ProceduralPanel";
+import { PerformanceOverlay } from "@/components/ui/PerformanceOverlay";
+import { MLDashboard } from "@/components/ui/MLDashboard";
 import { Bodies } from "@/components/scene/Bodies";
 import { BlackHole } from "@/components/scene/BlackHole";
 import { ChaosHeatmap } from "@/components/scene/ChaosHeatmap";
@@ -35,6 +40,8 @@ import { StarEffects } from "@/components/scene/StarEffects";
 import { Trails } from "@/components/scene/Trails";
 import { TransferArc } from "@/components/scene/TransferArc";
 import { TidalStream } from "@/components/scene/TidalStream";
+import { RenderStatsProbe } from "@/components/scene/RenderStatsProbe";
+import { MLTrajectory } from "@/components/scene/MLTrajectory";
 import { VelocityArrows } from "@/components/scene/VelocityArrows";
 import { useAnalysisWorker } from "@/hooks/useAnalysisWorker";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
@@ -84,12 +91,28 @@ export default function Home() {
           <BlackHole />
           <GWRipple />
           <TidalStream />
+          <RenderStatsProbe />
+          <MLTrajectory />
         </Scene>
 
         <div className="absolute left-4 top-4 z-10">
           <BodyLauncher />
         </div>
         <div className="absolute right-72 top-4 z-10 flex items-center gap-2">
+          <button
+            onClick={() => useSimulationStore.getState().setProceduralPanelOpen(true)}
+            className="pointer-events-auto flex items-center gap-1.5 rounded-md bg-zinc-900/90 px-3 py-2 text-xs font-medium text-zinc-100 shadow-lg ring-1 ring-zinc-700 hover:bg-zinc-800"
+          >
+            <Globe2 size={14} />
+            Generate
+          </button>
+          <button
+            onClick={() => useSimulationStore.getState().setAnalyticsOpen(true)}
+            className="pointer-events-auto flex items-center gap-1.5 rounded-md bg-zinc-900/90 px-3 py-2 text-xs font-medium text-zinc-100 shadow-lg ring-1 ring-zinc-700 hover:bg-zinc-800"
+          >
+            <BarChart3 size={14} />
+            Analytics
+          </button>
           <EnterVrButton />
           <ExportMenu />
         </div>
@@ -103,6 +126,10 @@ export default function Home() {
         <TimelineBar />
         <DisruptionToasts />
         <ScriptEditor />
+        <ProceduralPanel />
+        <AnalyticsDashboard />
+        <PerformanceOverlay />
+        <MLDashboard />
         <ShortcutsCheatsheet />
         <OnboardingTour />
         <LoadingOverlay />

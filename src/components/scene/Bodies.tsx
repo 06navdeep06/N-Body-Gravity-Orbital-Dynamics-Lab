@@ -16,6 +16,9 @@ import type { ThreeEvent } from "@react-three/fiber";
 import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import * as THREE from "three";
+import { currentQualitySettings } from "@/lib/performance/profiler";
+import { colorBlindColor } from "@/lib/a11y/preferences";
+import { useA11yStore } from "@/lib/stores/a11y-store";
 import { useSimulationStore } from "@/lib/stores/simulation-store";
 
 const CAPACITY = 1000;
@@ -26,6 +29,7 @@ export function Bodies() {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const selectedRef = useRef<THREE.Mesh>(null);
   const selectBody = useSimulationStore((s) => s.selectBody);
+  const segments = currentQualitySettings().sphereSegments;
 
   useFrame(() => {
     const mesh = meshRef.current;
@@ -33,6 +37,7 @@ export function Bodies() {
 
     const { system, selectedBodyId: selectedId, visualRadiusScale, maxDisplayRadius } =
       useSimulationStore.getState();
+    const colorBlind = useA11yStore.getState().colorBlindMode;
     const { bodies } = system;
     const visibleCount = Math.min(bodies.length, CAPACITY);
 
@@ -48,7 +53,9 @@ export function Bodies() {
         dummy.scale.setScalar(displayRadius(body.radius));
         dummy.updateMatrix();
         mesh.setMatrixAt(i, dummy.matrix);
-        mesh.setColorAt(i, tmpColor.set(body.color));
+        // Color-blind mode remaps to the Okabe-Ito palette keyed by body id,
+        // so bodies stay mutually distinguishable under CVD.
+        mesh.setColorAt(i, tmpColor.set(colorBlind ? colorBlindColor(body.id) : body.color));
       } else if (i < visibleCount + 1) {
         // Only need to zero-out the slot immediately past the live range;
         // farther slots were already zeroed on a previous frame.
@@ -85,8 +92,14 @@ export function Bodies() {
 
   return (
     <>
-      <instancedMesh ref={meshRef} args={[undefined, undefined, CAPACITY]} onClick={handleClick}>
-        <sphereGeometry args={[1, 24, 24]} />
+      <instancedMesh
+        key={`bodies-${segments}`}
+        ref={meshRef}
+        args={[undefined, undefined, CAPACITY]}
+        onClick={handleClick}
+      >
+        {/* Tessellation drops with the quality tier. */}
+        <sphereGeometry args={[1, segments, Math.max(8, Math.round(segments * 0.75))]} />
         <meshStandardMaterial roughness={0.55} metalness={0.15} />
       </instancedMesh>
       <mesh ref={selectedRef} visible={false}>

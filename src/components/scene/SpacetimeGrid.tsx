@@ -20,6 +20,7 @@
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
+import { currentQualitySettings } from "@/lib/performance/profiler";
 import { useSimulationStore } from "@/lib/stores/simulation-store";
 
 const MAX_BODIES = 64;
@@ -154,13 +155,16 @@ export function SpacetimeGrid() {
 
   if (!showSpacetimeGrid) return null;
 
+  // Never exceed the current quality tier's grid budget.
+  const effectiveSegments = Math.min(segments, currentQualitySettings().spacetimeGridSegments);
+
   return (
     <group rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.05, 0]}>
-      <mesh key={`fill-${segments}`} material={fillMaterial}>
-        <planeGeometry args={[GRID_SIZE, GRID_SIZE, segments, segments]} />
+      <mesh key={`fill-${effectiveSegments}`} material={fillMaterial}>
+        <planeGeometry args={[GRID_SIZE, GRID_SIZE, effectiveSegments, effectiveSegments]} />
       </mesh>
-      <mesh key={`wire-${segments}`} material={wireMaterial}>
-        <planeGeometry args={[GRID_SIZE, GRID_SIZE, segments, segments]} />
+      <mesh key={`wire-${effectiveSegments}`} material={wireMaterial}>
+        <planeGeometry args={[GRID_SIZE, GRID_SIZE, effectiveSegments, effectiveSegments]} />
       </mesh>
     </group>
   );

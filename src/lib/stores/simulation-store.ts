@@ -94,6 +94,7 @@ interface SimulationState {
   showChaosMap: boolean;
   showGwStrain: boolean;
   showLensing: boolean;
+  showMlPredictions: boolean;
 
   /** Requested backend; `activeBackend` is what actually ended up running. */
   computeBackend: ComputeBackend;
@@ -166,6 +167,7 @@ interface SimulationState {
   toggleShowChaosMap: () => void;
   toggleShowGwStrain: () => void;
   toggleShowLensing: () => void;
+  toggleShowMlPredictions: () => void;
 
   setComputeBackend: (backend: ComputeBackend) => void;
   setGpuInfo: (info: { adapterLabel: string; maxBodies: number } | null) => void;
@@ -227,6 +229,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   showChaosMap: false,
   showGwStrain: false,
   showLensing: true,
+  showMlPredictions: false,
 
   computeBackend: "cpu-worker",
   activeBackend: "cpu-worker",
@@ -256,7 +259,11 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   fps: 0,
   workerStepMs: 0,
 
-  setSystem: (system) => set((s) => ({ system, generation: s.generation + 1 })),
+  // An externally supplied state (generator, script, share link, snapshot)
+  // is no longer any preset, so clear `presetId` — otherwise the sidebar
+  // keeps naming a preset that is not what is loaded.
+  setSystem: (system) =>
+    set((s) => ({ system, presetId: "custom", generation: s.generation + 1 })),
   applyPhysicsResult: (system) => set({ system }),
 
   addBody: (body) =>
@@ -334,6 +341,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   toggleShowChaosMap: () => set((s) => ({ showChaosMap: !s.showChaosMap })),
   toggleShowGwStrain: () => set((s) => ({ showGwStrain: !s.showGwStrain })),
   toggleShowLensing: () => set((s) => ({ showLensing: !s.showLensing })),
+  toggleShowMlPredictions: () => set((s) => ({ showMlPredictions: !s.showMlPredictions })),
 
   setComputeBackend: (computeBackend) => set({ computeBackend }),
   setActiveBackend: (activeBackend) => set({ activeBackend }),

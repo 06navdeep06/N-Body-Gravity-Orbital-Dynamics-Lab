@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # ── Lint + Type-check + Test ───────────────────────────────────────
+  # ── Lint + type-check + tests ──────────────────────────────────────
   quality:
     runs-on: ubuntu-latest
     steps:
@@ -31,18 +31,24 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # `next lint` was removed in Next.js 16 — ESLint is invoked directly.
+      # Deliberately NOT continue-on-error: a lint failure should fail CI,
+      # otherwise the gate is decorative.
       - name: Lint
-        run: npx next lint
-        continue-on-error: true
+        run: npm run lint
 
       - name: Type-check (app)
         run: npx tsc --noEmit -p tsconfig.json
 
+      # Workers compile against the "webworker" lib, which is incompatible
+      # with the DOM lib, so they need their own program.
       - name: Type-check (workers)
         run: npx tsc --noEmit -p tsconfig.worker.json
 
-      - name: Run tests
-        run: npx jest --ci --coverage
+      # Enforces the coverage threshold in jest.config.ts (80% lines on
+      # src/lib/physics/).
+      - name: Test with coverage
+        run: npm run test:coverage -- --ci
 
       - name: Upload coverage
         if: always()
@@ -52,7 +58,7 @@ jobs:
           path: coverage/
           retention-days: 7
 
-  # ── Build ──────────────────────────────────────────────────────────
+  # ── Static export ──────────────────────────────────────────────────
   build:
     runs-on: ubuntu-latest
     needs: quality
@@ -68,15 +74,38 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build
-        run: npx next build
+      # A Pages *project* site is served from /<repo>, not the domain root.
+      # Without a matching basePath every asset URL 404s. Skipped for
+      # user/org sites (`<user>.github.io`), which are served from root.
+      - name: Resolve base path
+        id: basepath
+        run: |
+          REPO="${GITHUB_REPOSITORY#*/}"
+          if [[ "$REPO" == *.github.io ]]; then
+            echo "value=" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=/$REPO" >> "$GITHUB_OUTPUT"
+          fi
 
-      - name: Upload build artifact
+      - name: Build static export
+        env:
+          NEXT_PUBLIC_BASE_PATH: ${{ steps.basepath.outputs.value }}
+        run: npm run build
+
+      # Pages serves files as-is and would otherwise run them through
+      # Jekyll, which drops paths beginning with an underscore — including
+      # Next.js's entire _next/ asset directory.
+      - name: Disable Jekyll processing
+        run: touch out/.nojekyll
+
+      - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .next
+          # The static export, not .next/ — .next is a server build and
+          # cannot be served by Pages.
+          path: out
 
-  # ── Deploy to GitHub Pages ─────────────────────────────────────────
+  # ── Deploy ─────────────────────────────────────────────────────────
   deploy:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest

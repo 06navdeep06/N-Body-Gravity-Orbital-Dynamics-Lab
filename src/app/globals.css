@@ -24,3 +24,76 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* ---------------------------------------------------------------------------
+   Accessibility
+   ------------------------------------------------------------------------ */
+
+/*
+  Visually hidden but still exposed to assistive technology. `display: none`
+  or `visibility: hidden` would remove it from the accessibility tree, which
+  defeats the point of a live region.
+*/
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Visible focus ring on every interactive element, for keyboard users. */
+:where(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/*
+  Reduced motion: suppress incidental UI animation and transitions. The
+  simulation itself keeps running — the orbital motion is the content, not
+  decoration, and freezing it would remove the thing the user came for.
+  Scene-level effects (trails, particles, flares) are disabled separately in
+  the render components, which read the same preference.
+*/
+:root[data-reduced-motion="true"] *,
+:root[data-reduced-motion="true"] *::before,
+:root[data-reduced-motion="true"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+/*
+  High contrast: drop the translucent glassmorphism panels for solid
+  backgrounds, and thicken borders. Backdrop blur over a moving 3D scene is
+  precisely what makes low-vision reading hardest here.
+*/
+:root[data-high-contrast="true"] {
+  --panel-bg: #000000;
+  --panel-border: #ffffff;
+}
+
+:root[data-high-contrast="true"] [class*="bg-zinc-9"],
+:root[data-high-contrast="true"] [class*="bg-zinc-950"] {
+  background-color: #000000 !important;
+}
+
+:root[data-high-contrast="true"] [class*="backdrop-blur"] {
+  backdrop-filter: none !important;
+}
+
+:root[data-high-contrast="true"] [class*="border-zinc-"] {
+  border-color: #ffffff !important;
+  border-width: 2px !important;
+}
+
+:root[data-high-contrast="true"] [class*="text-zinc-5"],
+:root[data-high-contrast="true"] [class*="text-zinc-6"] {
+  color: #e4e4e7 !important;
+}

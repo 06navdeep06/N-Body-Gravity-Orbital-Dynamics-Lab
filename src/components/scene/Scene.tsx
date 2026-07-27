@@ -6,6 +6,7 @@ import { EffectComposer } from "@react-three/postprocessing";
 import { XR } from "@react-three/xr";
 import type { ReactNode } from "react";
 import { setGlCanvas } from "@/lib/utils/canvas-ref";
+import { currentQualitySettings } from "@/lib/performance/profiler";
 import { useSimulationStore } from "@/lib/stores/simulation-store";
 import { xrStore } from "@/lib/xr/xr-store";
 import { CameraController } from "./CameraController";
@@ -24,7 +25,10 @@ function PostProcessing() {
   const G = useSimulationStore((s) => s.system.G);
   const c = useSimulationStore((s) => s.speedOfLight);
 
-  if (!showLensing || findBlackHoles(bodies, G, c).length === 0) return null;
+  // Also dropped by the auto quality scaler at the "low" tier — an extra
+  // render-target round-trip is the first thing worth cutting under load.
+  if (!showLensing || !currentQualitySettings().postProcessing) return null;
+  if (findBlackHoles(bodies, G, c).length === 0) return null;
 
   return (
     <EffectComposer>

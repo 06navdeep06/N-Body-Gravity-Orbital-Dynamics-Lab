@@ -3,6 +3,7 @@
  * fragment cloud must obey.
  */
 
+import { detectAndResolveCollisions } from "@/lib/physics/collisions";
 import {
   detectAndResolveDisruptions,
   generateFragments,
@@ -149,6 +150,37 @@ describe("tidal disruption", () => {
       const second = detectAndResolveDisruptions({ ...state, bodies: first.bodies }, 2);
       expect(second.events).toHaveLength(0);
       expect(second.bodies).toHaveLength(first.bodies.length);
+    });
+
+    it("does not cascade through a collision merge", () => {
+      // Regression: mergeBodies used to drop `isFragment`, so two fragments
+      // colliding produced a body that was eligible for disruption again.
+      // Each disruption multiplies the body count, so that runs away.
+      const state: SystemState = {
+        bodies: [blackHole, starAt(20)],
+        timeStep: 0.001, G, softening: 0.01,
+      };
+      const { bodies } = detectAndResolveDisruptions(state, 1);
+      const fragments = bodies.filter((b) => b.isFragment);
+      expect(fragments.length).toBeGreaterThan(1);
+
+      // Force two fragments to overlap so they merge.
+      const [a, b] = [fragments[0]!, fragments[1]!];
+      const overlapping: CelestialBody[] = [
+        blackHole,
+        { ...a, radius: 5, position: { x: 20, y: 0, z: 0 } },
+        { ...b, radius: 5, position: { x: 20.1, y: 0, z: 0 } },
+      ];
+      const merged = detectAndResolveCollisions(
+        { ...state, bodies: overlapping },
+        2
+      );
+      expect(merged.events).toHaveLength(1);
+      expect(merged.events[0]!.mergedBody.isFragment).toBe(true);
+
+      // …and the merged fragment must still be exempt from disruption.
+      const after = detectAndResolveDisruptions({ ...state, bodies: merged.bodies }, 3);
+      expect(after.events).toHaveLength(0);
     });
 
     it("leaves a stable system untouched", () => {

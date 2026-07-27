@@ -30,11 +30,15 @@ const config: Config = {
     // `global` is required by Jest's type; keep it permissive and let the
     // physics-specific gate below be the one that actually bites.
     global: { lines: 0, functions: 0, branches: 0, statements: 0 },
+    // Spec target is >80% lines on the physics modules. Measured at the time
+    // of writing: 97.5% lines / 93.8% statements — these gates have real
+    // headroom and exist to catch regressions, so do not lower them to make
+    // a failing run pass.
     "./src/lib/physics/": {
-      lines: 40,
-      functions: 40,
-      branches: 40,
-      statements: 40,
+      lines: 80,
+      functions: 75,
+      branches: 70,
+      statements: 80,
     },
   },
   coverageDirectory: "coverage",

@@ -13,6 +13,7 @@ import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import { Lensflare, LensflareElement } from "three/examples/jsm/objects/Lensflare.js";
 import type { CelestialBody } from "@/lib/physics/types";
+import { useA11yStore } from "@/lib/stores/a11y-store";
 import { useSimulationStore } from "@/lib/stores/simulation-store";
 
 const STAR_MASS_FRACTION = 0.3;
@@ -73,6 +74,8 @@ export function StarEffects() {
   const bodies = useSimulationStore((s) => s.system.bodies);
   const visualRadiusScale = useSimulationStore((s) => s.visualRadiusScale);
   const maxDisplayRadius = useSimulationStore((s) => s.maxDisplayRadius);
+  // Sparkle coronas and lens flares are decoration, not information.
+  const reducedMotion = useA11yStore((s) => s.reducedMotion);
 
   const stars = useMemo(() => {
     const totalMass = bodies.reduce((sum, b) => sum + b.mass, 0);
@@ -81,6 +84,8 @@ export function StarEffects() {
       .filter((b) => b.isFixed || b.mass / totalMass > STAR_MASS_FRACTION)
       .slice(0, MAX_STARS);
   }, [bodies]);
+
+  if (reducedMotion) return null;
 
   return (
     <>

@@ -7,17 +7,18 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.worker.json",
     "type-check": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.worker.json",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "deploy": "gh-pages -d out -t"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.6.1",
     "@react-three/postprocessing": "^3.0.4",
     "@react-three/xr": "^6.6.30",
+    "@tensorflow/tfjs": "^4.22.0",
     "katex": "^0.18.1",
     "lucide-react": "^1.27.0",
     "next": "16.2.12",
@@ -38,6 +39,7 @@
     "@webgpu/types": "^0.1.71",
     "eslint": "^9",
     "eslint-config-next": "16.2.12",
+    "gh-pages": "^6.3.0",
     "jest": "^30.4.2",
     "raw-loader": "^4.0.2",
     "tailwindcss": "^4",

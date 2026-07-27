@@ -12,6 +12,8 @@
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
+import { currentQualitySettings } from "@/lib/performance/profiler";
+import { useA11yStore } from "@/lib/stores/a11y-store";
 import { useSimulationStore } from "@/lib/stores/simulation-store";
 
 const PARTICLES_PER_BURST = 80;
@@ -95,6 +97,10 @@ export function CollisionBursts() {
   useEffect(() => {
     return useSimulationStore.subscribe((state, prevState) => {
       if (state.collisionEvents === prevState.collisionEvents) return;
+      // Purely decorative — suppressed entirely under reduced motion.
+      if (useA11yStore.getState().reducedMotion) return;
+      // Auto quality scaling drops particle effects before post-processing.
+      if (!currentQualitySettings().particleEffects) return;
       const fresh: Burst[] = [];
       for (const event of state.collisionEvents) {
         const key = `${event.timestamp}-${event.bodyA}-${event.bodyB}`;

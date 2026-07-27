@@ -16,6 +16,7 @@
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
+import { currentQualitySettings } from "@/lib/performance/profiler";
 import { useSimulationStore } from "@/lib/stores/simulation-store";
 
 const MAX_SEGMENTS = 20000;
@@ -58,6 +59,11 @@ export function Trails() {
       return;
     }
 
+    // Auto quality scaling shortens trails first when frames get expensive.
+    const trailBudget = Math.max(
+      64,
+      Math.floor(MAX_SEGMENTS * currentQualitySettings().trailLengthFactor)
+    );
     const { trails } = useSimulationStore.getState();
     const { bodies } = useSimulationStore.getState().system;
     const colorById = new Map(bodies.map((b) => [b.id, b.color] as const));
@@ -65,21 +71,21 @@ export function Trails() {
     const entries = Object.entries(trails).filter(([, pts]) => pts.length >= 2);
     const totalSegments = entries.reduce((sum, [, pts]) => sum + pts.length - 1, 0);
     const budgetPerBody =
-      entries.length > 0 ? Math.max(2, Math.floor(MAX_SEGMENTS / entries.length) + 1) : 0;
+      entries.length > 0 ? Math.max(2, Math.floor(trailBudget / entries.length) + 1) : 0;
 
     let vertex = 0;
     const c = new THREE.Color();
 
     for (const [bodyId, pts] of entries) {
-      if (vertex >= MAX_SEGMENTS * 2) break;
+      if (vertex >= trailBudget * 2) break;
 
       c.set(colorById.get(bodyId) ?? "#888888");
       // Downsample this body's trail to fit its share of the budget if the
       // combined history across all bodies would overflow MAX_SEGMENTS.
-      const stride = totalSegments > MAX_SEGMENTS ? Math.ceil(pts.length / budgetPerBody) : 1;
+      const stride = totalSegments > trailBudget ? Math.ceil(pts.length / budgetPerBody) : 1;
 
       for (let i = 0; i + stride < pts.length; i += stride) {
-        if (vertex >= MAX_SEGMENTS * 2 - 1) break;
+        if (vertex >= trailBudget * 2 - 1) break;
         const a = pts[i]!;
         const b = pts[Math.min(i + stride, pts.length - 1)]!;
 
