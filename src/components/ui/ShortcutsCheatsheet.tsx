@@ -10,6 +10,8 @@ const SHORTCUTS: [string, string][] = [
   ["R", "Reset current preset"],
   ["G", "Toggle spacetime grid"],
   ["T", "Toggle trails"],
+  ["N", "Toggle resonances"],
+  ["W", "Toggle GW strain"],
   [`1–${PRESETS.length}`, "Load preset"],
   ["Esc", "Deselect body / close dialogs"],
   ["Delete", "Remove selected body"],

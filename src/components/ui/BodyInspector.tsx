@@ -4,6 +4,7 @@ import { Trash2, X } from "lucide-react";
 import { useMemo } from "react";
 import { computeOrbitalElements, inferPrimaryBody } from "@/lib/physics/orbital-elements";
 import { useSimulationStore } from "@/lib/stores/simulation-store";
+import { ChaosIndicator } from "./ChaosIndicator";
 import { PhysicsTooltip, type PhysicsTerm } from "./PhysicsTooltips";
 
 const RAD_TO_DEG = 180 / Math.PI;
@@ -208,6 +209,8 @@ export function BodyInspector() {
           </>
         )}
       </section>
+
+      <ChaosIndicator bodyId={body.id} />
 
       <button
         onClick={() => removeBody(body.id)}

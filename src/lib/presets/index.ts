@@ -6,6 +6,7 @@
 
 import { circularOrbitVelocity } from "@/lib/utils/orbital-velocity";
 import { REAL_SOLAR_SYSTEM_PRESET } from "@/lib/data/solar-system";
+import { BLACK_HOLE_PRESETS } from "./black-holes";
 import type { Preset } from "@/lib/stores/simulation-store";
 import type { CelestialBody } from "@/lib/physics/types";
 
@@ -152,11 +153,28 @@ function asteroidBelt(): Preset {
     { id: id("sun"), name: "Sun", mass: sunMass, position: { x: 0, y: 0, z: 0 }, velocity: { x: 0, y: 0, z: 0 }, color: "#fde047", radius: 4, isFixed: true },
   ];
 
-  const count = 80;
+  // A Jupiter-analog outside the belt. Kirkwood gaps are *caused* by
+  // resonances with a massive perturber, so without one there is nothing for
+  // the gap analysis to find.
+  const jupiterRadius = 45;
+  const jupiterSpeed = circularOrbitVelocity(sunMass, jupiterRadius, G);
+  bodies.push({
+    id: id("jupiter"),
+    name: "Jupiter",
+    mass: 30,
+    position: { x: jupiterRadius, y: 0, z: 0 },
+    velocity: { x: 0, y: 0, z: -jupiterSpeed },
+    color: "#d8ca9d",
+    radius: 1.6,
+  });
+
+  // Belt spanning ~18–32, which brackets the 3:1 (a≈21.6) through
+  // 2:1 (a≈28.3) resonances with Jupiter at a=45.
+  const count = 120;
   for (let i = 0; i < count; i++) {
     const angle = rng() * Math.PI * 2;
-    const radius = 15 + rng() * 10;
-    const speed = circularOrbitVelocity(sunMass, radius, G) * (0.97 + rng() * 0.06);
+    const radius = 18 + rng() * 14;
+    const speed = circularOrbitVelocity(sunMass, radius, G) * (0.99 + rng() * 0.02);
     const mass = 0.01 + rng() * 0.05;
     const size = 0.08 + rng() * 0.1;
 
@@ -174,7 +192,8 @@ function asteroidBelt(): Preset {
   return {
     id: "asteroid-belt",
     name: "Asteroid Belt",
-    description: "A sun with 80 small bodies — a performance stress test.",
+    description:
+      "A sun, a Jupiter-analog at a=45, and 120 asteroids spanning the 3:1–2:1 resonances. Enable Show Resonances for the Kirkwood-gap histogram.",
     state: { bodies, timeStep: 0.006, G, softening: 0.1 },
   };
 }
@@ -269,6 +288,7 @@ export const PRESETS: Preset[] = [
   galaxyCollision(),
   mercuryPrecession(),
   REAL_SOLAR_SYSTEM_PRESET,
+  ...BLACK_HOLE_PRESETS,
 ];
 
 export function getPresetById(presetId: string): Preset | undefined {

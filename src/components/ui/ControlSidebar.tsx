@@ -1,8 +1,10 @@
 "use client";
 
-import { Pause, Play, Route, RotateCcw } from "lucide-react";
+import { Code2, Cpu, Pause, Play, Route, RotateCcw, Zap } from "lucide-react";
 import { CAMERA_MODES } from "@/lib/camera/camera-modes";
+import { requestChaosMap, cancelChaosMap } from "@/hooks/useAnalysisWorker";
 import { PRESETS } from "@/lib/presets";
+import { useAnalysisStore } from "@/lib/stores/analysis-store";
 import { useSimulationStore } from "@/lib/stores/simulation-store";
 import { useTimelineStore } from "@/lib/stores/timeline-store";
 
@@ -80,6 +82,24 @@ export function ControlSidebar() {
   const toggleShowRocheLimits = useSimulationStore((s) => s.toggleShowRocheLimits);
   const showPhaseSpace = useSimulationStore((s) => s.showPhaseSpace);
   const toggleShowPhaseSpace = useSimulationStore((s) => s.toggleShowPhaseSpace);
+
+  const showResonances = useSimulationStore((s) => s.showResonances);
+  const toggleShowResonances = useSimulationStore((s) => s.toggleShowResonances);
+  const showChaosMap = useSimulationStore((s) => s.showChaosMap);
+  const toggleShowChaosMap = useSimulationStore((s) => s.toggleShowChaosMap);
+  const showGwStrain = useSimulationStore((s) => s.showGwStrain);
+  const toggleShowGwStrain = useSimulationStore((s) => s.toggleShowGwStrain);
+  const showLensing = useSimulationStore((s) => s.showLensing);
+  const toggleShowLensing = useSimulationStore((s) => s.toggleShowLensing);
+
+  const computeBackend = useSimulationStore((s) => s.computeBackend);
+  const setComputeBackend = useSimulationStore((s) => s.setComputeBackend);
+  const activeBackend = useSimulationStore((s) => s.activeBackend);
+  const gpuAdapterLabel = useSimulationStore((s) => s.gpuAdapterLabel);
+  const gpuMaxBodies = useSimulationStore((s) => s.gpuMaxBodies);
+  const bodyCount = useSimulationStore((s) => s.system.bodies.length);
+  const setScriptEditorOpen = useSimulationStore((s) => s.setScriptEditorOpen);
+  const chaosMap = useAnalysisStore((s) => s.chaosMap);
 
   const cameraMode = useSimulationStore((s) => s.cameraMode);
   const setCameraMode = useSimulationStore((s) => s.setCameraMode);
@@ -277,6 +297,27 @@ export function ControlSidebar() {
             title="Real-time Poincaré section and (r, ṙ) phase trajectory panel."
           />
         </Row>
+        <Row label="Show Resonances">
+          <Toggle
+            checked={showResonances}
+            onChange={toggleShowResonances}
+            title="Arcs between bodies in mean-motion resonance, plus a Kirkwood-gap histogram."
+          />
+        </Row>
+        <Row label="Show GW Strain">
+          <Toggle
+            checked={showGwStrain}
+            onChange={toggleShowGwStrain}
+            title="Quadrupole gravitational-wave strain plot and expanding wavefronts. Needs a close, comparable-mass binary."
+          />
+        </Row>
+        <Row label="Lensing (black holes)">
+          <Toggle
+            checked={showLensing}
+            onChange={toggleShowLensing}
+            title="Screen-space light deflection around black holes. Post-processing pass; disable if it costs too much."
+          />
+        </Row>
         <Row label={`Radius scale: ${visualRadiusScale.toFixed(0)}x`}>
           <input
             type="range"
@@ -289,6 +330,108 @@ export function ControlSidebar() {
             title="Visual exaggeration of body radii (1x = true scale). Physics is unaffected."
           />
         </Row>
+      </section>
+
+      <section className="space-y-2 border-t border-zinc-800 pt-3">
+        <h2 className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
+          Compute Backend
+        </h2>
+        <div className="grid grid-cols-2 gap-1">
+          {(
+            [
+              ["cpu-worker", "CPU Worker", Cpu, "RK4 + Barnes-Hut octree in a Web Worker."],
+              [
+                "gpu-webgpu",
+                "WebGPU",
+                Zap,
+                "Leapfrog direct summation in a WGSL compute shader — for very large N.",
+              ],
+            ] as const
+          ).map(([id, label, Icon, hint]) => {
+            const unavailable = id === "gpu-webgpu" && gpuAdapterLabel === null;
+            return (
+              <button
+                key={id}
+                onClick={() => setComputeBackend(id)}
+                disabled={unavailable}
+                title={unavailable ? "WebGPU unavailable in this browser/device" : hint}
+                className={`flex items-center justify-center gap-1.5 rounded-md border px-1.5 py-1.5 text-[10px] transition-colors ${
+                  computeBackend === id
+                    ? "border-sky-500 bg-sky-950/60 text-sky-200"
+                    : unavailable
+                      ? "cursor-not-allowed border-zinc-800 text-zinc-600"
+                      : "border-zinc-700 text-zinc-300 hover:border-zinc-500"
+                }`}
+              >
+                <Icon size={11} />
+                {label}
+              </button>
+            );
+          })}
+        </div>
+        <div className="rounded bg-zinc-900/70 px-2 py-1.5 font-mono text-[9px] leading-relaxed text-zinc-400">
+          <div className="flex justify-between">
+            <span className="text-zinc-500">running</span>
+            <span className={activeBackend === "gpu-webgpu" ? "text-emerald-300" : "text-sky-300"}>
+              {activeBackend === "gpu-webgpu" ? "GPU (WebGPU)" : "CPU worker"}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-zinc-500">device</span>
+            <span className="truncate pl-2" title={gpuAdapterLabel ?? undefined}>
+              {gpuAdapterLabel ?? "no WebGPU"}
+            </span>
+          </div>
+          {gpuMaxBodies !== null && (
+            <div className="flex justify-between">
+              <span className="text-zinc-500">GPU cap</span>
+              <span>{gpuMaxBodies.toLocaleString()} bodies</span>
+            </div>
+          )}
+          <div className="mt-0.5 text-zinc-600">
+            auto-switches to GPU above 500 bodies (now {bodyCount})
+          </div>
+        </div>
+      </section>
+
+      <section className="space-y-2 border-t border-zinc-800 pt-3">
+        <h2 className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
+          Chaos Analysis
+        </h2>
+        <Row label="Show Chaos Map">
+          <Toggle
+            checked={showChaosMap}
+            onChange={toggleShowChaosMap}
+            title="Heatmap of Lyapunov exponents over test-particle launch conditions (radius × speed). Computed progressively in a background worker."
+          />
+        </Row>
+        {showChaosMap && (
+          <div className="space-y-1">
+            <div className="flex gap-1">
+              <button
+                onClick={() => requestChaosMap()}
+                className="flex-1 rounded bg-zinc-800 py-1 text-[10px] hover:bg-zinc-700"
+              >
+                {chaosMap ? "Recompute" : "Compute map"}
+              </button>
+              {chaosMap?.running && (
+                <button
+                  onClick={cancelChaosMap}
+                  className="rounded bg-red-900/60 px-2 py-1 text-[10px] text-red-200 hover:bg-red-800/70"
+                >
+                  Stop
+                </button>
+              )}
+            </div>
+            {chaosMap && (
+              <div className="font-mono text-[9px] text-zinc-500">
+                {chaosMap.running
+                  ? `sweeping… row ${chaosMap.rowsDone}/${chaosMap.gridSize}`
+                  : `done · ${chaosMap.gridSize}×${chaosMap.gridSize} samples`}
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
       <section className="space-y-2 border-t border-zinc-800 pt-3">
@@ -328,6 +471,14 @@ export function ControlSidebar() {
         >
           <Route size={14} />
           Plan Transfer
+        </button>
+        <button
+          onClick={() => setScriptEditorOpen(true)}
+          title="Write JavaScript to build a custom scenario (sandboxed worker, 5s budget)"
+          className="flex w-full items-center justify-center gap-2 rounded-md bg-violet-900/70 py-2 text-xs font-medium text-violet-100 hover:bg-violet-800/80"
+        >
+          <Code2 size={14} />
+          Scenario Script
         </button>
       </section>
 

@@ -29,6 +29,12 @@ export interface CelestialBody {
    * gravity on other bodies but never accumulates velocity/position updates.
    */
   isFixed?: boolean;
+  /**
+   * Renders with the black-hole treatment (event horizon, photon sphere,
+   * accretion disk, lensing) instead of a lit sphere. Purely a rendering
+   * flag — the physics is the same Newtonian/post-Newtonian gravity.
+   */
+  isBlackHole?: boolean;
 }
 
 export interface SystemState {

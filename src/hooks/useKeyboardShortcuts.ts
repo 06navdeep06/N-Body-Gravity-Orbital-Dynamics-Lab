@@ -48,6 +48,14 @@ export function useKeyboardShortcuts() {
         case "T":
           store.toggleShowTrails();
           break;
+        case "n":
+        case "N":
+          store.toggleShowResonances();
+          break;
+        case "w":
+        case "W":
+          store.toggleShowGwStrain();
+          break;
         case "Escape":
           store.selectBody(null);
           break;

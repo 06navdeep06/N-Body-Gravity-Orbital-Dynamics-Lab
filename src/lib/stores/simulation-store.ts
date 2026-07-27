@@ -17,6 +17,15 @@ export const MAX_COLLISION_LOG = 20;
 
 export type CameraMode = "free" | "follow" | "topdown" | "flyby" | "corotating" | "dolly";
 
+/** Which engine advances the physics. */
+export type ComputeBackend = "cpu-worker" | "gpu-webgpu";
+
+/** Body count above which the GPU path is auto-selected when available. */
+export const GPU_AUTO_THRESHOLD = 500;
+
+/** Simulation-unit speed of light used when a preset doesn't specify one. */
+export const DEFAULT_SPEED_OF_LIGHT = 60;
+
 /** A computed transfer awaiting execution; rendered as an arc in the scene. */
 export interface PlannedTransfer {
   departureId: string;
@@ -77,6 +86,18 @@ interface SimulationState {
   showHillSpheres: boolean;
   showRocheLimits: boolean;
   showPhaseSpace: boolean;
+  showResonances: boolean;
+  showChaosMap: boolean;
+  showGwStrain: boolean;
+  showLensing: boolean;
+
+  /** Requested backend; `activeBackend` is what actually ended up running. */
+  computeBackend: ComputeBackend;
+  activeBackend: ComputeBackend;
+  gpuAdapterLabel: string | null;
+  gpuMaxBodies: number | null;
+
+  scriptEditorOpen: boolean;
 
   cameraMode: CameraMode;
   /** Visual-only radius multiplier (see Preset.visualRadiusScale). */
@@ -133,6 +154,15 @@ interface SimulationState {
   toggleShowHillSpheres: () => void;
   toggleShowRocheLimits: () => void;
   toggleShowPhaseSpace: () => void;
+  toggleShowResonances: () => void;
+  toggleShowChaosMap: () => void;
+  toggleShowGwStrain: () => void;
+  toggleShowLensing: () => void;
+
+  setComputeBackend: (backend: ComputeBackend) => void;
+  setGpuInfo: (info: { adapterLabel: string; maxBodies: number } | null) => void;
+  setActiveBackend: (backend: ComputeBackend) => void;
+  setScriptEditorOpen: (open: boolean) => void;
   toggleEnableGR: () => void;
   setSpeedOfLight: (c: number) => void;
 
@@ -181,6 +211,17 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   showHillSpheres: false,
   showRocheLimits: false,
   showPhaseSpace: false,
+  showResonances: false,
+  showChaosMap: false,
+  showGwStrain: false,
+  showLensing: true,
+
+  computeBackend: "cpu-worker",
+  activeBackend: "cpu-worker",
+  gpuAdapterLabel: null,
+  gpuMaxBodies: null,
+
+  scriptEditorOpen: false,
 
   cameraMode: "free",
   visualRadiusScale: 1,
@@ -192,7 +233,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   transferPlannerOpen: false,
 
   enableGR: false,
-  speedOfLight: 60,
+  speedOfLight: DEFAULT_SPEED_OF_LIGHT,
 
   trails: {},
   energyMetrics: null,
@@ -242,7 +283,10 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       energyMetrics: null,
       isRunning: false,
       enableGR: preset.enableGR ?? false,
-      speedOfLight: preset.speedOfLight ?? get().speedOfLight,
+      // Reset rather than carrying over: c controls the Schwarzschild radius
+      // used for black-hole rendering, so a leftover value from a black-hole
+      // preset would make an ordinary star in the next preset render as one.
+      speedOfLight: preset.speedOfLight ?? DEFAULT_SPEED_OF_LIGHT,
       visualRadiusScale: preset.visualRadiusScale ?? 1,
       maxDisplayRadius: preset.maxDisplayRadius ?? 0,
       simTime: 0,
@@ -268,6 +312,20 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   toggleShowHillSpheres: () => set((s) => ({ showHillSpheres: !s.showHillSpheres })),
   toggleShowRocheLimits: () => set((s) => ({ showRocheLimits: !s.showRocheLimits })),
   toggleShowPhaseSpace: () => set((s) => ({ showPhaseSpace: !s.showPhaseSpace })),
+  toggleShowResonances: () => set((s) => ({ showResonances: !s.showResonances })),
+  toggleShowChaosMap: () => set((s) => ({ showChaosMap: !s.showChaosMap })),
+  toggleShowGwStrain: () => set((s) => ({ showGwStrain: !s.showGwStrain })),
+  toggleShowLensing: () => set((s) => ({ showLensing: !s.showLensing })),
+
+  setComputeBackend: (computeBackend) => set({ computeBackend }),
+  setActiveBackend: (activeBackend) => set({ activeBackend }),
+  setGpuInfo: (info) =>
+    set(
+      info
+        ? { gpuAdapterLabel: info.adapterLabel, gpuMaxBodies: info.maxBodies }
+        : { gpuAdapterLabel: null, gpuMaxBodies: null }
+    ),
+  setScriptEditorOpen: (scriptEditorOpen) => set({ scriptEditorOpen }),
   toggleEnableGR: () => set((s) => ({ enableGR: !s.enableGR })),
   setSpeedOfLight: (speedOfLight) => set({ speedOfLight }),
 
