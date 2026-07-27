@@ -10,16 +10,27 @@
  * the current body count are scaled to zero rather than reallocating the
  * mesh, so body counts can change (collisions merging bodies, users adding
  * bodies) without remounting.
+ *
+ * This is the *baseline* renderer. Above the Low quality preset some bodies
+ * are drawn instead by `<PhotorealisticBodies />` (multi-layer PBR shells) or
+ * `<InstancedDebris />` (tumbling rock geometry); those slots are scaled to
+ * zero here so nothing is drawn twice. The partition comes from
+ * `assignBodyRoles`, which all three renderers call with the same inputs.
+ * Instance indices still line up with body indices either way, which is what
+ * `onClick` relies on to resolve `instanceId` back to a body.
  */
 
 import type { ThreeEvent } from "@react-three/fiber";
 import { useFrame } from "@react-three/fiber";
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import { currentQualitySettings } from "@/lib/performance/profiler";
 import { colorBlindColor } from "@/lib/a11y/preferences";
+import { assignBodyRoles } from "@/lib/render/body-roles";
+import { currentRenderFeatures } from "@/lib/render/quality-preset";
 import { useA11yStore } from "@/lib/stores/a11y-store";
 import { useSimulationStore } from "@/lib/stores/simulation-store";
+import { findBlackHoles } from "./BlackHole";
 
 const CAPACITY = 1000;
 const dummy = new THREE.Object3D();
@@ -31,15 +42,32 @@ export function Bodies() {
   const selectBody = useSimulationStore((s) => s.selectBody);
   const segments = currentQualitySettings().sphereSegments;
 
+  const scratch = useMemo(() => ({ blackHoleIds: new Set<string>() }), []);
+
   useFrame(() => {
     const mesh = meshRef.current;
     if (!mesh) return;
 
-    const { system, selectedBodyId: selectedId, visualRadiusScale, maxDisplayRadius } =
-      useSimulationStore.getState();
+    const {
+      system,
+      selectedBodyId: selectedId,
+      visualRadiusScale,
+      maxDisplayRadius,
+      speedOfLight,
+    } = useSimulationStore.getState();
     const colorBlind = useA11yStore.getState().colorBlindMode;
     const { bodies } = system;
     const visibleCount = Math.min(bodies.length, CAPACITY);
+
+    // Recomputed per frame rather than memoised: it must agree exactly with
+    // what the other two renderers are drawing *this* frame, and a stale
+    // partition would show a body twice or not at all for a frame after a
+    // collision. The cost is a couple of passes over the body array.
+    scratch.blackHoleIds.clear();
+    for (const { body } of findBlackHoles(bodies, system.G, speedOfLight)) {
+      scratch.blackHoleIds.add(body.id);
+    }
+    const { roles } = assignBodyRoles(bodies, currentRenderFeatures(), scratch.blackHoleIds);
 
     const displayRadius = (radius: number): number => {
       const scaled = radius * visualRadiusScale;
@@ -50,7 +78,9 @@ export function Bodies() {
       const body = bodies[i];
       if (body) {
         dummy.position.set(body.position.x, body.position.y, body.position.z);
-        dummy.scale.setScalar(displayRadius(body.radius));
+        // A body claimed by another renderer keeps its slot (so instanceId
+        // still maps to the body index for picking) but draws nothing.
+        dummy.scale.setScalar(roles[i] === "instanced" ? displayRadius(body.radius) : 0);
         dummy.updateMatrix();
         mesh.setMatrixAt(i, dummy.matrix);
         // Color-blind mode remaps to the Okabe-Ito palette keyed by body id,

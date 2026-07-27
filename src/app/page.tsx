@@ -24,6 +24,8 @@ import { ProceduralPanel } from "@/components/ui/ProceduralPanel";
 import { PerformanceOverlay } from "@/components/ui/PerformanceOverlay";
 import { MLDashboard } from "@/components/ui/MLDashboard";
 import { Bodies } from "@/components/scene/Bodies";
+import { PhotorealisticBodies } from "@/components/scene/PhotorealisticBodies";
+import { InstancedDebris } from "@/components/scene/InstancedDebris";
 import { BlackHole } from "@/components/scene/BlackHole";
 import { ChaosHeatmap } from "@/components/scene/ChaosHeatmap";
 import { CollisionBursts } from "@/components/scene/CollisionBursts";
@@ -74,7 +76,11 @@ export default function Home() {
 
       <div className="relative flex-1">
         <Scene>
+          {/* The three body renderers partition the body list between them —
+              see lib/render/body-roles. */}
           <Bodies />
+          <PhotorealisticBodies />
+          <InstancedDebris />
           <Trails />
           <VelocityArrows />
           <OrbitEllipse />

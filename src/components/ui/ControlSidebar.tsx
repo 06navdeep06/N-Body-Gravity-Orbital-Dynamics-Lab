@@ -1,7 +1,15 @@
 "use client";
 
+import { useEffect } from "react";
 import { Code2, Cpu, Pause, Play, Route, RotateCcw, Zap } from "lucide-react";
 import { CAMERA_MODES } from "@/lib/camera/camera-modes";
+import {
+  QUALITY_PRESETS,
+  QUALITY_PRESET_LABELS,
+  useQualityPreset,
+  useQualityStore,
+  type QualityPreset,
+} from "@/lib/render/quality-preset";
 import { requestChaosMap, cancelChaosMap } from "@/hooks/useAnalysisWorker";
 import { PRESETS } from "@/lib/presets";
 import { useAnalysisStore } from "@/lib/stores/analysis-store";
@@ -11,6 +19,58 @@ import { useTimelineStore } from "@/lib/stores/timeline-store";
 import { useA11yStore } from "@/lib/stores/a11y-store";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { LOCALES, LOCALE_NAMES, type Locale } from "@/lib/i18n/translations";
+
+const QUALITY_HINTS: Record<QualityPreset, string> = {
+  low: "Flat-shaded spheres, point-sprite starfield, no post-processing. The cheapest path.",
+  medium: "PBR surfaces with cloud shells, instanced rock debris, selective bloom.",
+  cinematic:
+    "Adds atmospheric scattering, a raymarched accretion disk, dynamic shadows, depth of field, god rays and lens flare.",
+};
+
+/**
+ * Rendering fidelity. The auto-scaler can hold the effective preset below the
+ * requested one under sustained frame-rate pressure, which is surfaced here
+ * rather than silently overriding the button the user just pressed.
+ */
+function QualityPresetPicker() {
+  const requested = useQualityStore((s) => s.requested);
+  const setPreset = useQualityStore((s) => s.setPreset);
+  const hydrate = useQualityStore((s) => s.hydrate);
+  const features = useQualityPreset();
+
+  // Deferred to an effect so the server render and the first client render
+  // agree; reading localStorage during render would break hydration.
+  useEffect(hydrate, [hydrate]);
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex gap-1" role="group" aria-label="Rendering quality preset">
+        {QUALITY_PRESETS.map((preset) => (
+          <button
+            key={preset}
+            type="button"
+            onClick={() => setPreset(preset)}
+            title={QUALITY_HINTS[preset]}
+            aria-pressed={requested === preset}
+            className={`flex-1 rounded px-2 py-1 text-[11px] transition-colors ${
+              requested === preset
+                ? "bg-zinc-700 text-zinc-100"
+                : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800"
+            }`}
+          >
+            {QUALITY_PRESET_LABELS[preset]}
+          </button>
+        ))}
+      </div>
+      {features.throttled && (
+        <p className="text-[10px] leading-tight text-amber-400/80">
+          Rendering at {QUALITY_PRESET_LABELS[features.preset]} — the frame-budget scaler
+          is holding fidelity down. Raise it from the performance overlay.
+        </p>
+      )}
+    </div>
+  );
+}
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -278,6 +338,13 @@ export function ControlSidebar() {
             title="Shreds a body into a fragment stream when it crosses a much heavier body's Roche limit and the tidal field beats its own self-gravity."
           />
         </Row>
+      </section>
+
+      <section className="space-y-2 border-t border-zinc-800 pt-3">
+        <h2 className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
+          Graphics
+        </h2>
+        <QualityPresetPicker />
       </section>
 
       <section className="space-y-2 border-t border-zinc-800 pt-3">

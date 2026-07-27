@@ -15,7 +15,9 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { CelestialBody } from "@/lib/physics/types";
+import { useQualityPreset } from "@/lib/render/quality-preset";
 import { useSimulationStore } from "@/lib/stores/simulation-store";
+import { AccretionDisk } from "./AccretionDisk";
 
 /** r_s = 2GM/c², in simulation units. */
 export function schwarzschildRadius(mass: number, G: number, c: number): number {
@@ -152,7 +154,15 @@ function makeDiskMaterial(rs: number): THREE.ShaderMaterial {
   });
 }
 
-function SingleBlackHole({ body, rs }: { body: CelestialBody; rs: number }) {
+function SingleBlackHole({
+  body,
+  rs,
+  volumetric,
+}: {
+  body: CelestialBody;
+  rs: number;
+  volumetric: boolean;
+}) {
   const groupRef = useRef<THREE.Group>(null);
   const diskRef = useRef<THREE.Mesh>(null);
   // The material is created and attached inside an effect, and only ever
@@ -161,6 +171,9 @@ function SingleBlackHole({ body, rs }: { body: CelestialBody; rs: number }) {
   const materialRef = useRef<THREE.ShaderMaterial | null>(null);
 
   useEffect(() => {
+    // The Cinematic preset swaps in the raymarched <AccretionDisk />, which
+    // owns its own material — building this one too would leak a program.
+    if (volumetric) return;
     const material = makeDiskMaterial(rs);
     materialRef.current = material;
     if (diskRef.current) diskRef.current.material = material;
@@ -168,14 +181,19 @@ function SingleBlackHole({ body, rs }: { body: CelestialBody; rs: number }) {
       materialRef.current = null;
       material.dispose();
     };
-  }, [rs]);
+  }, [rs, volumetric]);
 
   useFrame(({ camera, clock }) => {
     const group = groupRef.current;
-    const material = materialRef.current;
-    if (!group || !material) return;
+    if (!group) return;
     const live = useSimulationStore.getState().system.bodies.find((b) => b.id === body.id);
     if (live) group.position.set(live.position.x, live.position.y, live.position.z);
+
+    // On the Cinematic preset the disk is <AccretionDisk />, which drives its
+    // own uniforms — the group still has to be positioned either way, so this
+    // returns after the move rather than before it.
+    const material = materialRef.current;
+    if (!material) return;
 
     material.uniforms.uTime!.value = clock.elapsedTime;
     // Which in-plane direction currently rotates toward the camera, so the
@@ -200,10 +218,15 @@ function SingleBlackHole({ body, rs }: { body: CelestialBody; rs: number }) {
         <meshBasicMaterial color="#fff3d0" transparent opacity={0.9} blending={THREE.AdditiveBlending} />
       </mesh>
 
-      {/* Accretion disk, 3 r_s → 10 r_s (material attached in the effect). */}
-      <mesh ref={diskRef} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[rs * 22, rs * 22, 1, 1]} />
-      </mesh>
+      {/* Accretion disk, 3 r_s → 10 r_s. */}
+      {volumetric ? (
+        <AccretionDisk innerRadius={rs * 3} outerRadius={rs * 10} thickness={rs * 0.22} />
+      ) : (
+        // Flat Doppler-beamed disk (material attached in the effect above).
+        <mesh ref={diskRef} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[rs * 22, rs * 22, 1, 1]} />
+        </mesh>
+      )}
     </group>
   );
 }
@@ -212,13 +235,19 @@ export function BlackHole() {
   const bodies = useSimulationStore((s) => s.system.bodies);
   const G = useSimulationStore((s) => s.system.G);
   const c = useSimulationStore((s) => s.speedOfLight);
+  const features = useQualityPreset();
 
   const holes = useMemo(() => findBlackHoles(bodies, G, c), [bodies, G, c]);
 
   return (
     <>
       {holes.map(({ body, rs }) => (
-        <SingleBlackHole key={body.id} body={body} rs={rs} />
+        <SingleBlackHole
+          key={body.id}
+          body={body}
+          rs={rs}
+          volumetric={features.volumetricDisk}
+        />
       ))}
     </>
   );
