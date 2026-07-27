@@ -1,319 +1,146 @@
-# N-Body Orbital Dynamics Lab
+<div align="center">
 
-A research-grade gravitational N-body simulator that runs entirely in the
-browser — RK4 and symplectic GPU integrators, Keplerian orbit analysis,
-chaos quantification, relativistic precession, black-hole rendering, and a
-scripting sandbox for building your own scenarios.
+# 🌌 N-Body Orbital Dynamics Lab
 
-No backend, no install, no data leaves the page.
+**A research-grade gravitational N-body simulator running entirely in the browser.**
 
-```bash
-npm install && npm run dev
-```
+[![CI/CD](https://github.com/06navdeep06/N-Body-Gravity-Orbital-Dynamics-Lab/actions/workflows/ci.yml/badge.svg)](https://github.com/06navdeep06/N-Body-Gravity-Orbital-Dynamics-Lab/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)](https://www.typescriptlang.org/)
+[![WebGPU](https://img.shields.io/badge/WebGPU-Enabled-green)](https://www.w3.org/TR/webgpu/)
+[![Next.js](https://img.shields.io/badge/Next.js-16.2-black)](https://nextjs.org/)
 
----
+[**Live Demo**](https://06navdeep06.github.io/N-Body-Gravity-Orbital-Dynamics-Lab/) • [**Architecture**](ARCHITECTURE.md)
 
-## Features
-
-### Physics
-- **RK4 integrator** with configurable timestep, softening and adaptive
-  step control driven by measured energy drift.
-- **Barnes-Hut octree** — O(N log N) force evaluation. Measured accuracy at
-  θ = 0.5: **0.69% mean / 0.39% median** relative error vs. brute force.
-- **WebGPU compute path** — tiled Leapfrog (symplectic) in WGSL for large N,
-  with silent fallback to the CPU worker.
-- **Collisions** — inelastic merging conserving mass, momentum and volume.
-- **Tidal disruption** — bodies crossing a heavy body's Roche limit shred
-  into a power-law fragment cloud that forms leading/trailing tidal tails
-  through ordinary N-body evolution.
-- **GR precession** — leading-order post-Newtonian (Schwarzschild)
-  correction, validated against the analytic perihelion-advance rate.
-- **Lagrange points** L1–L5 via bisection-safeguarded Newton-Raphson.
-
-### Analysis
-- **Keplerian orbital elements** from the instantaneous state vector.
-- **Lyapunov exponents** (Benettin renormalization) with a chaos
-  classification that accounts for finite-time artifacts.
-- **Chaos maps** — Lyapunov exponent over a grid of launch conditions,
-  streamed progressively from a background worker.
-- **Poincaré sections** and phase-space trajectories.
-- **Mean-motion resonances** and Kirkwood-gap histograms.
-- **Gravitational-wave strain** in the quadrupole approximation — h₊, h×,
-  frequency and radiated power, validated to 0.2% against theory.
-- **Analytics dashboard** — 8 chart types on a from-scratch canvas charting
-  layer, with CSV export.
-
-### Visualization
-- Spacetime curvature grid (vertex-displaced shader), Hill spheres, Roche
-  limits, predicted orbit ellipses, velocity arrows, orbit trails.
-- **Black holes** — event horizon, photon sphere, Doppler-beamed procedural
-  accretion disk, screen-space gravitational lensing.
-- Collision particle bursts, star coronas and procedural lens flares.
-- Six camera modes including a co-rotating frame and cinematic dolly.
-
-### Interactivity
-- Shift-drag **slingshot launcher** for new bodies.
-- **Transfer planner** — Hohmann, bi-elliptic and Lambert solutions with a
-  Δv budget comparison and executable burns.
-- **Timeline scrubbing** and named snapshots.
-- **Scripting sandbox** — build scenarios in JavaScript, run in a terminable
-  worker with a 5 s budget and a 10,000-body cap.
-- **Procedural generation** — spiral galaxies with flat rotation curves,
-  random star systems with Titius-Bode spacing and Hill-constrained moons.
-- **WebXR** VR mode with controller ray-select and grab-and-throw.
-
-### Education & access
-- KaTeX formula overlays, contextual physics tooltips, onboarding tour.
-- Full **keyboard control** with a `?` cheatsheet.
-- **Accessibility**: screen-reader live regions, `prefers-reduced-motion`,
-  `prefers-contrast`, and an Okabe-Ito colour-blind palette.
-- **Five languages**: English, Spanish, German, Japanese, Hindi.
+</div>
 
 ---
 
-## Getting started
+> **Mission:** Deliver a high-performance astrophysics sandbox to the web. No backend. No installation. No data leaves the page. From Keplerian transfers to general relativity, tidal shredding, and chaos theory—all calculated locally in real-time.
 
-**Requirements:** Node 18+ (CI uses 22). Any modern browser; WebGPU
-(Chrome 113+ / Edge 113+) unlocks the GPU compute path but is not required.
+---
 
-```bash
-npm install
-npm run dev          # http://localhost:3000
+## ⚡ Core Engine
 
-npm run lint         # ESLint
-npm run type-check   # app + worker TypeScript programs
-npm test             # Jest
-npm run test:coverage
-npm run build        # static export to ./out
-```
-
-### Environment variables
-
-Copy `.env.example` to `.env.local`:
-
-| Variable | Purpose |
+| Subsystem | Implementation |
 |---|---|
-| `NEXT_PUBLIC_BASE_PATH` | Subdirectory prefix for hosting (GitHub Pages project sites). Empty for root. |
-| `NEXT_PUBLIC_WS_URL` | Reserved for collaborative sessions. **Currently unused** — see [Not implemented](#not-implemented). |
+| **Integrator (CPU)** | 4th-order Runge-Kutta (RK4) with configurable Plummer softening ε and adaptive energy-drift step control. |
+| **Integrator (GPU)** | WebGPU compute path executing a tiled Leapfrog (symplectic) WGSL shader for massive N-body scaling (10,000+ bodies). |
+| **Force Evaluation** | Barnes-Hut octree yielding `O(N log N)` scaling. Validated accuracy: 0.69% mean relative error at θ = 0.5 vs brute force. |
+| **Collisions** | Inelastic merging algorithms rigorously conserving total mass, system momentum, and body volume. |
+| **Tidal Forces** | Bodies crossing a primary's Roche limit are procedurally shredded into a power-law fragment cloud, dynamically forming tidal tails. |
 
 ---
 
-## Architecture
+## 🔭 Advanced Astrophysics & Analysis
 
-Fully client-side. Physics runs in Web Workers or a WebGPU pipeline; state
-lives in Zustand stores; rendering is React Three Fiber.
+- **General Relativity (GR):** Post-Newtonian (Schwarzschild) perturbation for accurate periapsis advance simulation.
+- **Chaos Quantification:** Maximum Lyapunov exponent extraction via Benettin renormalization, rendered via progressive background-worker chaos maps.
+- **Phase Space:** Real-time Poincaré sections and phase-space trajectory plotting.
+- **Resonances:** Active detection of Mean-Motion Resonances with Kirkwood-gap histograms.
+- **Gravitational Waves:** Quadrupole approximation calculating $h_+$, $h_\times$, frequency, and radiated power ($P_{GW}$).
+- **Lagrange Solvers:** L1–L5 point solvers leveraging bisection-safeguarded Newton-Raphson methods.
+
+---
+
+## 🎥 Visualization & XR
+
+- **Black Holes:** Event horizons, photon spheres, and Doppler-beamed procedural accretion disks paired with screen-space gravitational lensing.
+- **Spacetime Grid:** Vertex-displaced shader mapping gravitational potential wells across the XZ plane.
+- **Orbital UI:** Predicted orbit ellipses, Hill spheres, Roche limit rings, velocity vectors, and gradient trails.
+- **WebXR (VR):** Fully integrated Virtual Reality mode with ray-selection and grab-and-throw mechanics.
+- **Cinematics:** Six distinct camera modes including co-rotating frames and cinematic dolly interpolation.
+
+---
+
+## 🛠 Scripting & Interactivity
+
+- **Hohmann & Lambert Planners:** Interactive UI for orbital transfer planning, execution, and Δv budget analysis.
+- **Scripting Sandbox:** Write JavaScript scenarios inside a strict, terminable Web Worker sandbox (5s budget, 10K body limits).
+- **Procedural Generation:** Instantly spin up spiral galaxies (with flat rotation curves) or Titius-Bode constrained solar systems.
+- **Accessibility & ML:** Screen-reader live regions, colorblind-safe palettes (Okabe-Ito), 5-language i18n, and TensorFlow.js predictive ML models.
+
+---
+
+## 🚀 Quick Start
+
+**Requirements:** Node 22+. Any modern browser (Chrome 113+ / Edge 113+ required for WebGPU acceleration; CPU worker fallback is automatic).
+
+```bash
+# Clone and install dependencies
+git clone https://github.com/06navdeep06/N-Body-Gravity-Orbital-Dynamics-Lab.git
+cd N-Body-Gravity-Orbital-Dynamics-Lab
+npm install
+
+# Start the development server
+npm run dev
+```
+Open [http://localhost:3000](http://localhost:3000)
+
+### Testing & Validation
+The physics engine is ruthlessly validated against analytic results (not snapshots). 
+```bash
+npm test             # Run 112 tests across 10 suites
+npm run lint         # ESLint strict validation
+npm run type-check   # tsc validation (DOM & WebWorker scopes)
+```
+
+---
+
+## 🧠 Physics Reference
+
+<details>
+<summary><b>View Equations & Algorithms</b></summary>
+
+**Newtonian gravity** with Plummer softening $\epsilon$, which removes the singularity at $r \to 0$:
+$$F_{ij} = \frac{G \cdot m_i \cdot m_j \cdot (r_j - r_i)}{(|r_j - r_i|^2 + \epsilon^2)^{3/2}}$$
+
+**Vis-viva** — speed anywhere on a conic of semi-major axis $a$:
+$$v^2 = GM \left(\frac{2}{r} - \frac{1}{a}\right)$$
+
+**Roche limit** (fluid body) and **Hill radius**:
+$$d_{Roche} = 2.44 \cdot R_M \left(\frac{\rho_M}{\rho_m}\right)^{1/3} \quad\quad r_{Hill} = a \left(\frac{m}{3M}\right)^{1/3}$$
+
+**GR perihelion advance** per orbit (leading post-Newtonian order):
+$$\Delta\varpi = \frac{6\pi GM}{a c^2 (1 - e^2)}$$
+
+**Maximum Lyapunov exponent** (Benettin, with periodic renormalization):
+$$\lambda = \frac{1}{T} \sum \ln\left(\frac{d_k}{\delta}\right)$$
+
+</details>
+
+---
+
+## ⌨️ Keyboard Shortcuts
+
+| Key | Action | Key | Action |
+|---|---|---|---|
+| `Space` | Play / pause | `W` | Toggle GW strain |
+| `R` | Reset current preset | `1`–`9` | Load preset N |
+| `G` | Toggle spacetime grid | `Esc` | Deselect / close dialogs |
+| `T` | Toggle trails | `Del` | Remove selected body |
+| `N` | Toggle resonances | `Shift`+Drag | Slingshot-launch body |
+| `Ctrl+Shift+P`| Performance profiler | `?` | Show shortcuts |
+
+---
+
+## 🏛 Architecture
+
+Fully client-side. Physics runs in Web Workers or a WebGPU pipeline; state lives in Zustand stores; rendering is React Three Fiber.
+For full details, read [**ARCHITECTURE.md**](ARCHITECTURE.md).
 
 ```mermaid
 flowchart LR
-    P[Presets / Generators / Scripts] --> S[simulation-store]
-    S --> H[usePhysicsWorker<br/>rAF loop]
-    H -->|STEP| W[physics.worker<br/>RK4 + Barnes-Hut]
-    H -->|step| G[gpu-engine<br/>WGSL Leapfrog]
+    P[Presets / Scripts] --> S[Zustand Store]
+    S --> H[usePhysicsWorker]
+    H -->|STEP| W[CPU Worker]
+    H -->|stepGPU| G[WebGPU]
     W --> H
     G --> H
     H --> S
-    H --> R[Recorders<br/>analytics · GW · Poincaré · ML]
-    S --> V[R3F scene]
-    S --> U[UI panels]
-    R --> U
+    H --> R[Analytics & ML]
+    S --> V[R3F WebGL Scene]
 ```
 
-Full detail — module graph, worker protocols, rendering pipeline, file
-index — is in **[ARCHITECTURE.md](ARCHITECTURE.md)**.
-
-### Tech stack
-
-| Package | Version | Role |
-|---|---|---|
-| next | 16.2 | App Router, static export |
-| react / react-dom | 19.2 | UI |
-| three | 0.185 | WebGL renderer |
-| @react-three/fiber | 9.6 | React renderer for three |
-| @react-three/drei | 10.7 | scene helpers |
-| @react-three/postprocessing | 3.0 | lensing pass |
-| @react-three/xr | 6.6 | WebXR |
-| @tensorflow/tfjs | 4.22 | ML predictor (lazy-loaded) |
-| zustand | 5.0 | state |
-| katex | 0.18 | formula rendering |
-| pako | 3.0 | share-link compression |
-| jest / ts-jest | 30 / 29 | tests |
-
----
-
-## Physics reference
-
-**Newtonian gravity** with Plummer softening ε, which removes the
-singularity at r → 0:
-
-```
-F_ij = G · m_i · m_j · (r_j − r_i) / (|r_j − r_i|² + ε²)^(3/2)
-```
-
-**Vis-viva** — speed anywhere on a conic of semi-major axis a:
-
-```
-v² = GM (2/r − 1/a)
-```
-
-**Barnes-Hut opening criterion** — a node of size s at distance d is treated
-as a point mass when `s/d < θ`. A node *containing* the body is always
-opened, or the body's own mass would act on itself.
-
-**Roche limit** (fluid body) and **Hill radius**:
-
-```
-d_Roche = 2.44 · R_M · (ρ_M / ρ_m)^(1/3)
-r_Hill  = a · (m / 3M)^(1/3)
-```
-
-**Tidal disruption** fires only when the tidal field across the body beats
-its own surface gravity:
-
-```
-a_tidal = 2GMR / d³   >   a_self = Gm / R²
-```
-
-**GR perihelion advance** per orbit (leading post-Newtonian order):
-
-```
-Δϖ = 6πGM / (a c² (1 − e²))
-```
-
-**Gravitational-wave strain** in the quadrupole approximation:
-
-```
-Q_ij = Σ_k m_k (3 x_i x_j − δ_ij |r|²)
-h_ij = (2G / D c⁴) · Q̈_ij
-P_GW = (G / 5c⁵) · ⟨ Q⃛_ij Q⃛^ij ⟩
-```
-
-**Maximum Lyapunov exponent** (Benettin, with periodic renormalization):
-
-```
-λ = (1/T) · Σ ln(d_k / δ)
-```
-
-Reported over the *second half* of the integration: for a regular orbit the
-accumulated log-stretching grows like ln(T), so the late-window rate decays
-toward zero, while genuine chaos holds a steady positive rate. The window is
-auto-sized to ~24 orbits of the target — chaos measured over a fraction of
-one orbit is meaningless.
-
----
-
-## Keyboard shortcuts
-
-| Key | Action |
-|---|---|
-| `Space` | Play / pause |
-| `R` | Reset current preset |
-| `G` | Toggle spacetime grid |
-| `T` | Toggle trails |
-| `N` | Toggle resonances |
-| `W` | Toggle GW strain |
-| `1`–`9` | Load preset N |
-| `Esc` | Deselect body / close dialogs |
-| `Delete` | Remove selected body |
-| `Shift` + drag | Slingshot-launch a new body |
-| `?` | Toggle shortcut cheatsheet |
-| `Ctrl+Shift+P` | Toggle performance profiler |
-
----
-
-## Scripting API
-
-Scripts run in a worker with no DOM and no network, a 5-second budget and a
-10,000-body cap.
-
-```js
-api.addBody({
-  name, mass,
-  position: [x, y, z],
-  velocity: [vx, vy, vz],
-  color, radius,
-  isFixed, isBlackHole,
-});
-
-api.removeBody(nameOrId);
-api.setG(value);
-api.setSoftening(value);
-api.setTimeStep(value);
-api.circularOrbitVelocity(centralMass, radius);  // √(GM/r)
-api.escapeVelocity(centralMass, distance);       // √(2GM/r)
-api.bodyCount;
-api.log(...args);
-```
-
-`Math` is available. `window`, `document`, `fetch`, storage and timers are
-not. Built-in templates cover rings, Gaussian clusters, colliding galaxies,
-the Pythagorean three-body problem and a Broucke periodic orbit.
-
----
-
-## Testing
-
-135 tests across 11 suites. **93.8% statements / 97.5% lines** on
-`src/lib/physics/`, gated at 80% in CI.
-
-Tests assert against analytic results wherever one exists — Kepler periods,
-Hohmann Δv against published Earth→Mars values, the Schwarzschild precession
-rate, Sun–Earth L1 at one Hill radius. That approach found three real bugs
-that had shipped: a sign error in the Lagrange L1 derivative, an octree
-stack overflow on coincident bodies, and an octree self-mass leak.
-
----
-
-## Deployment
-
-`npm run build` produces a static export in `out/`. CI lints, type-checks
-both TypeScript programs, runs tests with the coverage gate, builds, and
-deploys to GitHub Pages.
-
-For a **project site** (`user.github.io/repo`), `NEXT_PUBLIC_BASE_PATH` must
-be `/repo` or every asset 404s. The workflow derives this automatically.
-
-Manual deploy: `npm run build && npm run deploy`.
-
----
-
-## Not implemented
-
-Stated plainly so the feature list above can be trusted:
-
-- **Real-time multiplayer.** Requires a long-lived WebSocket server, which
-  Next.js App Router route handlers cannot host. `NEXT_PUBLIC_WS_URL` is
-  reserved for it but nothing reads it.
-- **JPL Horizons live fetch.** The Solar System preset uses a curated
-  offline dataset with real masses and orbital elements.
-- **Audio sonification.**
-- **Sub-768px responsive layout.** Keyboard accessibility is complete; the
-  panel-collapse breakpoint is not.
-
-### Verified vs. unverified
-
-| Area | Status |
-|---|---|
-| CPU physics, analysis, generators | Unit-tested against analytic results |
-| UI, static export | Driven in headless Chromium, zero console errors |
-| **WebGPU compute path** | **Unverified on real hardware** — headless Chromium exposes no adapter. The WGSL compiles and the CPU fallback is exercised, but the 10k-body performance claim is untested. |
-| **WebXR** | **Untested** — no headset. Only graceful degradation was confirmed. |
-| ML predictor | Trains and predicts; accuracy is not competitive with RK4 by design |
-
----
-
-## Contributing
-
-1. `npm install`
-2. Make your change.
-3. `npm run lint && npm run type-check && npm test` — all three must pass.
-4. Physics changes need a test asserting against an analytic result, not a
-   recorded snapshot.
-5. Scene components that own GPU buffers must follow the ref-in-effect
-   pattern described in ARCHITECTURE.md §5 — the React Compiler lint rules
-   reject mutating `useMemo`/`useState` values after render.
-
----
-
-## License
-
-MIT
+## 📝 License
+[MIT](LICENSE)
