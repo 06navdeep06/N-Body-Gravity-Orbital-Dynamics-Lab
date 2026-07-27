@@ -207,11 +207,18 @@ export function ControlSidebar() {
 
   return (
     <div className="flex h-full w-72 flex-col gap-4 overflow-y-auto border-r border-zinc-800 bg-zinc-950/90 p-4 text-zinc-100">
-      <div>
-        <h1 className="text-sm font-semibold tracking-wide text-zinc-100">
-          {t("app.title")}
-        </h1>
-        <p className="mt-1 text-[11px] text-zinc-500">{t("app.subtitle")}</p>
+      <div className="flex items-center gap-2.5">
+        <img
+          src="/textures/logo.png"
+          alt="N-Body Lab Logo"
+          className="h-8 w-8 object-contain shrink-0 drop-shadow-[0_0_8px_rgba(56,189,248,0.4)]"
+        />
+        <div>
+          <h1 className="text-sm font-semibold tracking-wide text-zinc-100">
+            {t("app.title")}
+          </h1>
+          <p className="mt-0.5 text-[11px] text-zinc-500">{t("app.subtitle")}</p>
+        </div>
       </div>
 
       <div className="flex gap-2">

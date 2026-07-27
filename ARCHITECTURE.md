@@ -85,6 +85,8 @@ graph LR
 | File | Purpose |
 |------|---------|
 | `solar-system.ts` | High-fidelity Solar System ephemeris (Sun + 8 planets + Moon + Galilean moons + Pluto + Halley's Comet) |
+| `astronomical-presets.ts` | Catalogue of ~110 real objects (planets, dwarf planets, moons, stars, black holes, exoplanets/small bodies, spacecraft) in canonical M☉/AU units, with search |
+| `preset-spawn.ts` | Scene unit rescaling + two-body state-vector solver behind the "Add Body" builder |
 
 ### `src/lib/camera/`
 
@@ -156,7 +158,7 @@ graph LR
 |-----------|---------|
 | `ControlSidebar.tsx` | Left sidebar — simulation controls, view toggles, preset selector, physics options |
 | `BodyInspector.tsx` | Right panel — selected body properties, orbital elements, editable fields |
-| `BodyLauncher.tsx` | FAB + modal for adding new bodies with quick presets |
+| `BodyLauncher.tsx` | FAB + panel — categorized catalogue of real objects, search, host selection, auto-computed circular/elliptical orbits; Custom tab for raw values |
 | `EnergyDashboard.tsx` | Bottom overlay — KE/PE/TE sparkline, angular momentum, drift warning |
 | `TimelineBar.tsx` | Bottom scrub bar — history timeline, snapshot save/restore |
 | `TransferPlanner.tsx` | Modal — Hohmann/bi-elliptic planner, Δv budget comparison |

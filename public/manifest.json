@@ -1,0 +1,20 @@
+{
+  "name": "N-Body Orbital Dynamics Lab",
+  "short_name": "N-Body Lab",
+  "icons": [
+    {
+      "src": "/textures/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "theme_color": "#03040a",
+  "background_color": "#03040a",
+  "display": "standalone"
+}

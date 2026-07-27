@@ -40,11 +40,18 @@ export function LoadingOverlay() {
             }}
           />
         ))}
-        <span className="absolute left-1/2 top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-amber-200 shadow-[0_0_16px_6px_rgba(253,230,138,0.35)]" />
+        <img
+          src="/textures/logo.png"
+          alt="Orbital Dynamics Logo"
+          className="absolute left-1/2 top-1/2 h-8 w-8 -translate-x-1/2 -translate-y-1/2 object-contain drop-shadow-[0_0_12px_rgba(56,189,248,0.6)]"
+        />
       </div>
-      <p className="mt-6 font-mono text-xs tracking-widest text-zinc-500">
-        INITIALIZING ORBITAL DYNAMICS LAB
-      </p>
+      <div className="mt-6 flex items-center gap-2">
+        <img src="/textures/logo.png" alt="Logo" className="h-4 w-4 object-contain opacity-70" />
+        <p className="font-mono text-xs tracking-widest text-zinc-500">
+          INITIALIZING ORBITAL DYNAMICS LAB
+        </p>
+      </div>
     </div>
   );
 }

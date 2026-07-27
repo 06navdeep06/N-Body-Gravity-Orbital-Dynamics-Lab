@@ -1,4 +1,6 @@
 {
-  "bodies": {},
+  "bodies": {
+    "logo": "/textures/logo.png"
+  },
   "env": []
 }

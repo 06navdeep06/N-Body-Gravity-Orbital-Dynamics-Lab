@@ -43,7 +43,10 @@ export function ShortcutsCheatsheet() {
         className="w-80 rounded-lg border border-zinc-700 bg-zinc-950 p-4 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="mb-3 text-sm font-semibold text-zinc-100">Keyboard Shortcuts</h3>
+        <div className="mb-3 flex items-center gap-2 border-b border-zinc-800 pb-2">
+          <img src="/textures/logo.png" alt="Logo" className="h-5 w-5 object-contain" />
+          <h3 className="text-sm font-semibold text-zinc-100">Keyboard Shortcuts</h3>
+        </div>
         <div className="space-y-1.5">
           {SHORTCUTS.map(([key, desc]) => (
             <div key={key} className="flex items-center justify-between text-xs">
